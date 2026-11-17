@@ -1,0 +1,27 @@
+{
+  "name": "jus-document-analyzer",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/api",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "jiti": "^2.7.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0"
+  },
+  "dependencies": {
+    "eslint-config-prettier": "^10.1.8"
+  }
+}
