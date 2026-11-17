@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import type { Env } from "@/config/env";
 import { healthRoutes } from "@/modules/health/health-routes";
 import { authRoutes } from "@/modules/auth/auth-routes";
@@ -8,11 +9,25 @@ import {
   createGoogleOAuthProvider,
   type GoogleOAuthProvider,
 } from "@/modules/auth/google-oauth";
+import { documentsRoutes } from "@/modules/documents/documents-routes";
+import { createDocumentService } from "@/modules/documents/documents-service";
+import {
+  createOpenAIAnalyzer,
+  type DocumentAnalyzer,
+} from "@/integrations/openai/openai-analyzer";
+import {
+  createS3Storage,
+  type StorageProvider,
+} from "@/integrations/storage/s3-storage";
+import { createDocumentRepository } from "@/repositories/document-repository";
+import { registerErrorHandler } from "@/shared/errors/error-handler";
 import { createPrismaClient } from "@/shared/database/prisma";
 import { buildLoggerOptions } from "./shared/logger/logger";
 
 export interface BuildAppOptions {
   googleOAuthProvider?: GoogleOAuthProvider;
+  storage?: StorageProvider;
+  documentAnalyzer?: DocumentAnalyzer;
 }
 
 export async function buildApp(
@@ -22,6 +37,8 @@ export async function buildApp(
   const app = Fastify({
     logger: buildLoggerOptions(env.NODE_ENV === "test" ? "silent" : "info"),
   });
+
+  registerErrorHandler(app);
 
   const prisma = createPrismaClient(env.DATABASE_URL);
 
@@ -37,6 +54,8 @@ export async function buildApp(
 
   app.decorate("googleOAuthProvider", googleOAuthProvider);
 
+  const maxFileSizeBytes = Math.floor(env.MAX_FILE_SIZE_MB * 1024 * 1024);
+
   await app.register(cookie);
 
   await app.register(cors, {
@@ -44,7 +63,28 @@ export async function buildApp(
     credentials: true,
   });
 
+  await app.register(multipart, {
+    throwFileSizeLimit: false,
+    limits: {
+      fileSize: maxFileSizeBytes,
+      files: 1,
+      fields: 4,
+      parts: 6,
+      fieldSize: 16 * 1024,
+    },
+  });
+
+  const documentService = createDocumentService({
+    documents: createDocumentRepository(prisma),
+    storage: options.storage ?? createS3Storage(env),
+    analyzer: options.documentAnalyzer ?? createOpenAIAnalyzer(env),
+    logger: app.log,
+    maxTextChars: env.MAX_TEXT_CHARS,
+    maxFileSizeBytes,
+  });
+
   await app.register(authRoutes(env));
+  await app.register(documentsRoutes(env, documentService));
   await app.register(healthRoutes);
 
   return app;
