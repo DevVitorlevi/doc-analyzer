@@ -1,24 +1,71 @@
-import type { FastifyInstance } from "fastify";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { buildApp } from "@/app";
-import { loadEnv } from "@/config/env";
-import { makeTestEnv } from "../helpers/fake-env";
+import { PrismaClient } from "@prisma/client";
+import { describe, expect, it } from "vitest";
+import { useIntegrationDatabase } from "../helpers/integration-hooks";
+import { assertTestDatabase } from "../helpers/assert-test-database";
+import { resetTestDatabase } from "../helpers/reset-test-database";
 
-describe("GET /health", () => {
-  let app: FastifyInstance;
+describe("Integration tests", () => {
+  const { getApp } = useIntegrationDatabase();
 
-  beforeEach(async () => {
-    app = await buildApp(loadEnv(makeTestEnv()));
-  });
-
-  afterEach(async () => {
-    await app.close();
-  });
-
-  it("responds 200 with status ok without authentication", async () => {
-    const response = await app.inject({ method: "GET", url: "/health" });
+  it("GET /health responds 200 without authentication", async () => {
+    const response = await getApp().inject({
+      method: "GET",
+      url: "/health",
+    });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json<{ status: string }>()).toEqual({ status: "ok" });
+    expect(response.json<{ status: string }>()).toEqual({
+      status: "ok",
+    });
+  });
+
+  it("clears users and documents from the test database", async () => {
+    const databaseUrl = process.env.TEST_DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error("TEST_DATABASE_URL is not defined");
+    }
+
+    assertTestDatabase(databaseUrl);
+
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    });
+
+    try {
+      const user = await prisma.user.create({
+        data: {
+          googleId: "test-google-user",
+          email: "test@example.com",
+          name: "Test User",
+        },
+      });
+
+      await prisma.document.create({
+        data: {
+          userId: user.id,
+          title: "Test document",
+          instruction: "Test instruction",
+          s3Key: "test/document.pdf",
+          originalName: "document.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 1024,
+        },
+      });
+
+      expect(await prisma.user.count()).toBe(1);
+      expect(await prisma.document.count()).toBe(1);
+
+      await resetTestDatabase();
+
+      expect(await prisma.user.count()).toBe(0);
+      expect(await prisma.document.count()).toBe(0);
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 });
