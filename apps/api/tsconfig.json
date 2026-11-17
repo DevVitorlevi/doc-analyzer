@@ -21,6 +21,7 @@
     "src",
     "tests",
     "prisma",
+    "scripts",
     "vitest.unit.config.ts",
     "vitest.integration.config.ts",
     "tsup.config.ts"
