@@ -8,7 +8,13 @@ export interface StoredObject {
 
 export function createFakeStorage() {
   const objects = new Map<string, StoredObject>();
-  const failures = { put: false, delete: false };
+
+  const failures = {
+    put: false,
+    get: false,
+    presign: false,
+    delete: false,
+  };
 
   const storage: StorageProvider = {
     async putObject({ key, body, contentType }) {
@@ -20,6 +26,10 @@ export function createFakeStorage() {
     },
 
     async getObject(key) {
+      if (failures.get) {
+        throw new StorageError("get");
+      }
+
       const stored = objects.get(key);
 
       if (!stored) {
@@ -30,6 +40,10 @@ export function createFakeStorage() {
     },
 
     async getPresignedReadUrl(key) {
+      if (failures.presign) {
+        throw new StorageError("presign");
+      }
+
       return `https://fake-storage.test/${key}`;
     },
 
@@ -49,6 +63,8 @@ export function createFakeStorage() {
     reset(): void {
       objects.clear();
       failures.put = false;
+      failures.get = false;
+      failures.presign = false;
       failures.delete = false;
     },
   };

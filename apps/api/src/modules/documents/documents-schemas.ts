@@ -14,6 +14,10 @@ export const createDocumentFieldsSchema = z.object({
     .max(2000, "A instrução deve ter no máximo 2000 caracteres."),
 });
 
+export const documentIdParamsSchema = z.object({
+  id: z.uuid("O ID do documento deve ser um UUID válido."),
+});
+
 export interface DocumentResponse {
   id: string;
   title: string;
@@ -27,6 +31,19 @@ export interface DocumentResponse {
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+}
+
+export interface DocumentListItemResponse {
+  id: string;
+  title: string;
+  createdAt: string;
+  sizeBytes: number;
+  mimeType: string;
+  status: string;
+}
+
+export interface DocumentDetailResponse extends DocumentResponse {
+  fileUrl: string;
 }
 
 export function toDocumentResponse(document: DocumentRecord): DocumentResponse {
@@ -43,5 +60,28 @@ export function toDocumentResponse(document: DocumentRecord): DocumentResponse {
     mimeType: document.mimeType,
     sizeBytes: document.sizeBytes,
     createdAt: document.createdAt.toISOString(),
+  };
+}
+
+export function toDocumentListItemResponse(
+  document: DocumentRecord,
+): DocumentListItemResponse {
+  return {
+    id: document.id,
+    title: document.title,
+    createdAt: document.createdAt.toISOString(),
+    sizeBytes: document.sizeBytes,
+    mimeType: document.mimeType,
+    status: document.status,
+  };
+}
+
+export function toDocumentDetailResponse(
+  document: DocumentRecord,
+  fileUrl: string,
+): DocumentDetailResponse {
+  return {
+    ...toDocumentResponse(document),
+    fileUrl,
   };
 }
