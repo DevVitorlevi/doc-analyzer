@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyBaseLogger } from "fastify";
 import type { Document as DocumentRecord } from "@prisma/client";
+
 import type { DocumentAnalyzer } from "@/integrations/openai/openai-analyzer";
 import type { StorageProvider } from "@/integrations/storage/s3-storage";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/integrations/text-extraction/text-extractor";
 import type { DocumentRepository } from "@/repositories/document-repository";
 import { AppError } from "@/shared/errors/app-error";
+
 import { detectFileType, sanitizeFileName } from "./file-validation";
 import {
   isExpectedProcessingError,
@@ -33,6 +35,11 @@ export interface CreateDocumentInput {
     originalName: string;
     buffer: Buffer;
   };
+}
+
+export interface DocumentDetail {
+  document: DocumentRecord;
+  fileUrl: string;
 }
 
 type AnalysisOutcome =
@@ -99,7 +106,6 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     }
 
     const detected = await detectFileType(buffer, input.file.originalName);
-
     const documentId = randomUUID();
     const s3Key = `${input.userId}/${documentId}.${detected.extension}`;
 
@@ -161,7 +167,41 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     });
   }
 
-  return { createDocument };
+  async function listDocuments(userId: string): Promise<DocumentRecord[]> {
+    return deps.documents.listByUser(userId);
+  }
+
+  async function getDocumentById(
+    id: string,
+    userId: string,
+  ): Promise<DocumentDetail> {
+    const document = await deps.documents.findByIdForUser(id, userId);
+
+    if (!document) {
+      throw new AppError("NOT_FOUND", "Documento não encontrado.", 404);
+    }
+
+    let fileUrl: string;
+
+    try {
+      fileUrl = await deps.storage.getPresignedReadUrl(document.s3Key);
+    } catch (error) {
+      throw new AppError(
+        "STORAGE_ERROR",
+        "Não foi possível gerar o link para acessar o documento.",
+        502,
+        error,
+      );
+    }
+
+    return { document, fileUrl };
+  }
+
+  return {
+    createDocument,
+    listDocuments,
+    getDocumentById,
+  };
 }
 
 export type DocumentService = ReturnType<typeof createDocumentService>;
