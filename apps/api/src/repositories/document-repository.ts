@@ -32,6 +32,22 @@ export function createDocumentRepository(prisma: PrismaClient) {
       return prisma.document.create({ data });
     },
 
+    listByUser(userId: string): Promise<DocumentRecord[]> {
+      return prisma.document.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
+    },
+
+    findByIdForUser(
+      id: string,
+      userId: string,
+    ): Promise<DocumentRecord | null> {
+      return prisma.document.findFirst({
+        where: { id, userId },
+      });
+    },
+
     markCompleted(
       id: string,
       userId: string,

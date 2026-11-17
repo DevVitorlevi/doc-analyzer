@@ -1,4 +1,5 @@
 import type { Document as DocumentRecord } from "@prisma/client";
+
 import type { DocumentRepository } from "@/repositories/document-repository";
 
 export function createFakeDocumentRepository(
@@ -23,6 +24,7 @@ export function createFakeDocumentRepository(
       }
 
       const now = new Date();
+
       const record: DocumentRecord = {
         ...data,
         analysis: null,
@@ -35,6 +37,25 @@ export function createFakeDocumentRepository(
       };
 
       records.set(record.id, record);
+
+      return record;
+    },
+
+    async listByUser(userId) {
+      return [...records.values()]
+        .filter((record) => record.userId === userId)
+        .sort(
+          (first, second) =>
+            second.createdAt.getTime() - first.createdAt.getTime(),
+        );
+    },
+
+    async findByIdForUser(id, userId) {
+      const record = records.get(id);
+
+      if (!record || record.userId !== userId) {
+        return null;
+      }
 
       return record;
     },
