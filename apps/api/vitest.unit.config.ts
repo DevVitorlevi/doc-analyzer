@@ -1,11 +1,12 @@
-import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
-    name: "integration",
-    include: ["tests/integration/**/*.test.ts"],
+    name: "unit",
+    include: ["tests/unit/**/*.test.ts"],
     environment: "node",
     env: {
       NODE_ENV: "test",

@@ -1,5 +1,5 @@
 {
-  "name": "jus-document-analyzer",
+  "name": "doc-analyzer",
   "private": true,
   "type": "module",
   "engines": {

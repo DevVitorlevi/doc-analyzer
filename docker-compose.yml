@@ -1,0 +1,41 @@
+name: doc-analyzer
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: doc-analyzer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doc_analyzer
+      POSTGRES_PASSWORD: doc_analyzer
+      POSTGRES_DB: doc_analyzer
+    ports:
+      - "5432:5432"
+    volumes:
+      - doc_analyzer_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doc_analyzer -d doc_analyzer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: doc-analyzer-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doc_analyzer
+      POSTGRES_PASSWORD: doc_analyzer
+      POSTGRES_DB: doc_analyzer_test
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doc_analyzer -d doc_analyzer_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  doc_analyzer_pgdata:
