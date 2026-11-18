@@ -2,6 +2,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
+import { fileURLToPath } from "node:url";
+
 import type { Env } from "@/config/env";
 import { healthRoutes } from "@/modules/health/health-routes";
 import { authRoutes } from "@/modules/auth/auth-routes";
@@ -71,6 +75,24 @@ export async function buildApp(
       fields: 4,
       parts: 6,
       fieldSize: 16 * 1024,
+    },
+  });
+
+  // A especificação é estática para documentar os contratos existentes
+  // sem introduzir validação automática nas rotas da aplicação.
+  await app.register(swagger, {
+    mode: "static",
+    specification: {
+      path: fileURLToPath(new URL("../openapi.json", import.meta.url)),
+      baseDir: fileURLToPath(new URL("..", import.meta.url)),
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: "/documentation",
+    uiConfig: {
+      docExpansion: "list",
+      deepLinking: true,
     },
   });
 
