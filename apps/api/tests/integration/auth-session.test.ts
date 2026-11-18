@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { useIntegrationDatabase } from "../helpers/integration-hooks";
+
 import { SESSION_COOKIE } from "@/modules/auth/session";
 
 describe("Authentication session", () => {
@@ -14,7 +16,6 @@ describe("Authentication session", () => {
     });
 
     const authorizationUrl = new URL(startResponse.headers.location!);
-
     const state = authorizationUrl.searchParams.get("state");
 
     if (!state) {
@@ -43,8 +44,10 @@ describe("Authentication session", () => {
     };
   }
 
-  it("rejects an invalid OAuth state", async () => {
-    const response = await getApp().inject({
+  it("rejects an invalid OAuth state with the standard error format", async () => {
+    const app = getApp();
+
+    const response = await app.inject({
       method: "GET",
       url: "/auth/google/callback?code=test-code&state=wrong-state",
       headers: {
@@ -53,20 +56,34 @@ describe("Authentication session", () => {
     });
 
     expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Solicitação de autenticação inválida.",
+      },
+    });
 
-    expect(await getApp().prisma.user.count()).toBe(0);
+    expect(await app.prisma.user.count()).toBe(0);
   });
 
-  it("rejects GET /me without a valid session", async () => {
+  it("rejects GET /me without a valid session using the standard error format", async () => {
     const response = await getApp().inject({
       method: "GET",
       url: "/me",
     });
 
     expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Autenticação necessária.",
+      },
+    });
   });
 
   it("creates a user and an authenticated session", async () => {
+    const app = getApp();
+
     const { callbackResponse, sessionCookie } = await completeGoogleLogin();
 
     expect(callbackResponse.statusCode).toBe(302);
@@ -75,7 +92,7 @@ describe("Authentication session", () => {
     expect(sessionCookie.httpOnly).toBe(true);
     expect(sessionCookie.maxAge).toBe(604800);
 
-    const meResponse = await getApp().inject({
+    const meResponse = await app.inject({
       method: "GET",
       url: "/me",
       headers: {
@@ -84,14 +101,13 @@ describe("Authentication session", () => {
     });
 
     expect(meResponse.statusCode).toBe(200);
-
     expect(meResponse.json()).toMatchObject({
       name: "Test User",
       email: "test@example.com",
       picture: null,
     });
 
-    expect(await getApp().prisma.user.count()).toBe(1);
+    expect(await app.prisma.user.count()).toBe(1);
   });
 
   it("logs out and clears the session cookie", async () => {
@@ -106,9 +122,7 @@ describe("Authentication session", () => {
     });
 
     expect(response.statusCode).toBe(204);
-
     expect(String(response.headers["set-cookie"])).toContain(SESSION_COOKIE);
-
     expect(String(response.headers["set-cookie"])).toMatch(/Max-Age=0/i);
   });
 });
