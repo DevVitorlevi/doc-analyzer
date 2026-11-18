@@ -40,6 +40,7 @@ export function createFakeDocumentRepository(
       };
 
       records.set(record.id, record);
+
       return record;
     },
 
@@ -76,6 +77,26 @@ export function createFakeDocumentRepository(
       return records.delete(id);
     },
 
+    async markProcessing(id, userId) {
+      const record = records.get(id);
+
+      if (!record || record.userId !== userId || record.status !== "FAILED") {
+        return false;
+      }
+
+      records.set(id, {
+        ...record,
+        status: "PROCESSING",
+        analysis: null,
+        errorCode: null,
+        errorMessage: null,
+        truncated: false,
+        updatedAt: new Date(),
+      });
+
+      return true;
+    },
+
     async markCompleted(id, userId, result) {
       const updated: DocumentRecord = {
         ...getOwned(id, userId),
@@ -84,9 +105,11 @@ export function createFakeDocumentRepository(
         truncated: result.truncated,
         errorCode: null,
         errorMessage: null,
+        updatedAt: new Date(),
       };
 
       records.set(id, updated);
+
       return updated;
     },
 
@@ -97,9 +120,11 @@ export function createFakeDocumentRepository(
         errorCode: failure.errorCode,
         errorMessage: failure.errorMessage,
         truncated: failure.truncated,
+        updatedAt: new Date(),
       };
 
       records.set(id, updated);
+
       return updated;
     },
   };
