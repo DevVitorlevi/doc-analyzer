@@ -48,6 +48,14 @@ export function createDocumentRepository(prisma: PrismaClient) {
       });
     },
 
+    async deleteByIdForUser(id: string, userId: string): Promise<boolean> {
+      const result = await prisma.document.deleteMany({
+        where: { id, userId },
+      });
+
+      return result.count > 0;
+    },
+
     markCompleted(
       id: string,
       userId: string,

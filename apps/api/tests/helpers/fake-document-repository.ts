@@ -3,7 +3,10 @@ import type { Document as DocumentRecord } from "@prisma/client";
 import type { DocumentRepository } from "@/repositories/document-repository";
 
 export function createFakeDocumentRepository(
-  options: { failCreate?: boolean } = {},
+  options: {
+    failCreate?: boolean;
+    failDelete?: boolean;
+  } = {},
 ) {
   const records = new Map<string, DocumentRecord>();
 
@@ -37,7 +40,6 @@ export function createFakeDocumentRepository(
       };
 
       records.set(record.id, record);
-
       return record;
     },
 
@@ -60,6 +62,20 @@ export function createFakeDocumentRepository(
       return record;
     },
 
+    async deleteByIdForUser(id, userId) {
+      if (options.failDelete) {
+        throw new Error("db delete failed");
+      }
+
+      const record = records.get(id);
+
+      if (!record || record.userId !== userId) {
+        return false;
+      }
+
+      return records.delete(id);
+    },
+
     async markCompleted(id, userId, result) {
       const updated: DocumentRecord = {
         ...getOwned(id, userId),
@@ -71,7 +87,6 @@ export function createFakeDocumentRepository(
       };
 
       records.set(id, updated);
-
       return updated;
     },
 
@@ -85,7 +100,6 @@ export function createFakeDocumentRepository(
       };
 
       records.set(id, updated);
-
       return updated;
     },
   };
