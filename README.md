@@ -2,6 +2,33 @@
 
 API para gerenciamento e análise de documentos. Permite autenticação com Google, envio de arquivos, extração de texto, análise com IA e armazenamento dos documentos.
 
+## Deploy em produção
+
+A API está hospedada na plataforma Railway.
+
+| Recurso               | URL                                                                  |
+| --------------------- | -------------------------------------------------------------------- |
+| API                   | https://doc-analyzerapi-production.up.railway.app                    |
+| Health check          | https://doc-analyzerapi-production.up.railway.app/health             |
+| Documentação Swagger  | https://doc-analyzerapi-production.up.railway.app/documentation      |
+| Especificação OpenAPI | https://doc-analyzerapi-production.up.railway.app/documentation/json |
+
+O deploy é realizado pelo Railway a partir do repositório GitHub.
+
+### Configuração de produção
+
+O Railway utiliza os seguintes comandos:
+
+```bash
+npm run build -w apps/api
+npm run start
+```
+
+- `build`: gera o Prisma Client.
+- `start`: inicia a API em modo de produção.
+
+As variáveis de ambiente de produção são configuradas diretamente no painel do Railway. Não é necessário disponibilizar um arquivo `.env` no servidor.
+
 ## Tecnologias
 
 - Node.js
@@ -14,6 +41,7 @@ API para gerenciamento e análise de documentos. Permite autenticação com Goog
 - Backblaze B2 / armazenamento compatível com Amazon S3
 - Vitest
 - Swagger / OpenAPI
+- Railway
 
 ## Requisitos
 
@@ -130,13 +158,21 @@ A autenticação utiliza OAuth 2.0 do Google.
 2. Crie ou selecione um projeto.
 3. Configure a tela de consentimento OAuth.
 4. Crie uma credencial do tipo OAuth Client ID para aplicação Web.
-5. Cadastre a URI de redirecionamento:
+5. Cadastre as URIs de redirecionamento autorizadas.
+
+**Desenvolvimento local:**
 
 ```text
 http://localhost:3333/auth/google/callback
 ```
 
-6. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_REDIRECT_URI` no `.env`.
+**Produção:**
+
+```text
+https://doc-analyzerapi-production.up.railway.app/auth/google/callback
+```
+
+6. Configure `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_REDIRECT_URI` no ambiente correspondente.
 
 O fluxo utiliza os escopos `openid`, `email` e `profile`. Após a autenticação, a API cria a sessão por meio de um cookie HTTP-only.
 
@@ -184,17 +220,29 @@ curl http://localhost:3333/health
 
 ## Documentação da API
 
-A documentação interativa é disponibilizada pelo Swagger UI:
+A documentação interativa é disponibilizada pelo Swagger UI.
+
+**Ambiente local:**
 
 ```text
 http://localhost:3333/documentation
 ```
 
+**Produção:**
+
+https://doc-analyzerapi-production.up.railway.app/documentation
+
 A especificação OpenAPI em JSON fica disponível em:
+
+**Ambiente local:**
 
 ```text
 http://localhost:3333/documentation/json
 ```
+
+**Produção:**
+
+https://doc-analyzerapi-production.up.railway.app/documentation/json
 
 A documentação descreve os endpoints, parâmetros, payloads, respostas, erros e autenticação por cookie.
 
@@ -298,6 +346,8 @@ npm run typecheck
 | Script                                 | Descrição                                |
 | -------------------------------------- | ---------------------------------------- |
 | `npm run dev`                          | Inicia a API em modo de desenvolvimento. |
+| `npm run build -w apps/api`            | Gera o Prisma Client para produção.      |
+| `npm run start`                        | Inicia a API em modo de produção.        |
 | `npm run typecheck -w apps/api`        | Verifica os tipos TypeScript da API.     |
 | `npm run test:unit -w apps/api`        | Executa os testes unitários.             |
 | `npm run test:integration -w apps/api` | Executa os testes de integração.         |
