@@ -4,6 +4,7 @@ import type { Env } from "@/config/env";
 import { authenticate } from "@/modules/auth/authenticate";
 
 import {
+  createDeleteDocumentHandler,
   createDocumentHandler,
   createGetDocumentHandler,
   createListDocumentsHandler,
@@ -33,6 +34,12 @@ export function documentsRoutes(
       "/documents/:id",
       { preHandler: auth },
       createGetDocumentHandler(service),
+    );
+
+    app.delete(
+      "/documents/:id",
+      { preHandler: auth },
+      createDeleteDocumentHandler(service),
     );
 
     done();

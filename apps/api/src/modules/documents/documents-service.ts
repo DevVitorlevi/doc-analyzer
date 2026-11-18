@@ -197,10 +197,54 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     return { document, fileUrl };
   }
 
+  async function deleteDocument(id: string, userId: string): Promise<void> {
+    const document = await deps.documents.findByIdForUser(id, userId);
+
+    if (!document) {
+      throw new AppError("NOT_FOUND", "Documento não encontrado.", 404);
+    }
+
+    try {
+      await deps.storage.deleteObject(document.s3Key);
+    } catch (error) {
+      throw new AppError(
+        "STORAGE_ERROR",
+        "Não foi possível excluir o arquivo do documento.",
+        502,
+        error,
+      );
+    }
+
+    try {
+      const deleted = await deps.documents.deleteByIdForUser(id, userId);
+
+      if (!deleted) {
+        throw new AppError("NOT_FOUND", "Documento não encontrado.", 404);
+      }
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      deps.logger.error(
+        { err: error, documentId: id },
+        "Failed to delete document record after removing storage object",
+      );
+
+      throw new AppError(
+        "INTERNAL_ERROR",
+        "Não foi possível concluir a exclusão do documento.",
+        500,
+        error,
+      );
+    }
+  }
+
   return {
     createDocument,
     listDocuments,
     getDocumentById,
+    deleteDocument,
   };
 }
 
