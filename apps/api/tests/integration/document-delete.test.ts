@@ -160,4 +160,32 @@ describe("DELETE /documents/:id", () => {
     expect(existingDocument).not.toBeNull();
     expect(storageFake.objects.has(document.s3Key)).toBe(true);
   });
+
+  it("returns 404 when retrieving a document after deleting it", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+    const user = await getApp().prisma.user.findFirstOrThrow();
+    const document = await createDocument(user.id);
+
+    storageFake.objects.set(document.s3Key, {
+      body: Buffer.from("document content"),
+      contentType: document.mimeType,
+    });
+
+    const deleteResponse = await getApp().inject({
+      method: "DELETE",
+      url: `/documents/${document.id}`,
+      headers: { cookie },
+    });
+
+    expect(deleteResponse.statusCode).toBe(204);
+
+    const getResponse = await getApp().inject({
+      method: "GET",
+      url: `/documents/${document.id}`,
+      headers: { cookie },
+    });
+
+    expect(getResponse.statusCode).toBe(404);
+    expect(getResponse.json().error.code).toBe("NOT_FOUND");
+  });
 });
