@@ -56,6 +56,25 @@ export function createDocumentRepository(prisma: PrismaClient) {
       return result.count > 0;
     },
 
+    async markProcessing(id: string, userId: string): Promise<boolean> {
+      const result = await prisma.document.updateMany({
+        where: {
+          id,
+          userId,
+          status: DocumentStatus.FAILED,
+        },
+        data: {
+          status: DocumentStatus.PROCESSING,
+          analysis: null,
+          errorCode: null,
+          errorMessage: null,
+          truncated: false,
+        },
+      });
+
+      return result.count === 1;
+    },
+
     markCompleted(
       id: string,
       userId: string,

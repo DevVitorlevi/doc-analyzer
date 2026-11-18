@@ -1,17 +1,24 @@
 import { randomUUID } from "node:crypto";
+
 import type { FastifyBaseLogger } from "fastify";
+
 import type { Document as DocumentRecord } from "@prisma/client";
 
 import type { DocumentAnalyzer } from "@/integrations/openai/openai-analyzer";
+
 import type { StorageProvider } from "@/integrations/storage/s3-storage";
+
 import {
   extractText,
   type DocumentFormat,
 } from "@/integrations/text-extraction/text-extractor";
+
 import type { DocumentRepository } from "@/repositories/document-repository";
+
 import { AppError } from "@/shared/errors/app-error";
 
 import { detectFileType, sanitizeFileName } from "./file-validation";
+
 import {
   isExpectedProcessingError,
   toProcessingFailure,
@@ -45,6 +52,13 @@ export interface DocumentDetail {
 type AnalysisOutcome =
   | { ok: true; analysis: string; truncated: boolean }
   | { ok: false; failure: ProcessingFailure; truncated: boolean };
+
+const DOCUMENT_FORMATS: Record<string, DocumentFormat> = {
+  "application/pdf": "pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    "docx",
+  "text/plain": "txt",
+};
 
 export function createDocumentService(deps: DocumentServiceDeps) {
   async function removeOrphanObject(key: string): Promise<void> {
@@ -167,6 +181,84 @@ export function createDocumentService(deps: DocumentServiceDeps) {
     });
   }
 
+  async function retryDocument(
+    id: string,
+    userId: string,
+  ): Promise<DocumentRecord> {
+    const document = await deps.documents.findByIdForUser(id, userId);
+
+    if (!document) {
+      throw new AppError("NOT_FOUND", "Documento não encontrado.", 404);
+    }
+
+    if (document.status !== "FAILED") {
+      throw new AppError(
+        "CONFLICT",
+        "Somente documentos com falha podem ser reprocessados.",
+        409,
+      );
+    }
+
+    const format = DOCUMENT_FORMATS[document.mimeType];
+
+    if (!format) {
+      return deps.documents.markFailed(id, userId, {
+        errorCode: "UNSUPPORTED_FILE_TYPE",
+        errorMessage:
+          "O formato do arquivo não é suportado para reprocessamento.",
+        truncated: false,
+      });
+    }
+
+    const claimed = await deps.documents.markProcessing(id, userId);
+
+    if (!claimed) {
+      throw new AppError(
+        "CONFLICT",
+        "O documento não está mais disponível para reprocessamento.",
+        409,
+      );
+    }
+
+    let buffer: Buffer;
+
+    try {
+      buffer = await deps.storage.getObject(document.s3Key);
+    } catch (error) {
+      deps.logger.error(
+        { err: error, documentId: id },
+        "Failed to retrieve document for retry",
+      );
+
+      return deps.documents.markFailed(id, userId, {
+        errorCode: "STORAGE_ERROR",
+        errorMessage:
+          "Não foi possível recuperar o arquivo para reprocessamento. Tente novamente.",
+        truncated: false,
+      });
+    }
+
+    const outcome = await runAnalysis(document.instruction, buffer, format);
+
+    if (outcome.ok) {
+      return deps.documents.markCompleted(id, userId, {
+        analysis: outcome.analysis,
+        truncated: outcome.truncated,
+      });
+    }
+
+    deps.logger.warn(
+      { documentId: id, errorCode: outcome.failure.errorCode },
+      "Document retry failed",
+    );
+
+    return deps.documents.markFailed(id, userId, {
+      errorCode: outcome.failure.errorCode,
+      errorMessage: outcome.failure.errorMessage,
+      truncated: outcome.truncated,
+    });
+  }
+
   async function listDocuments(userId: string): Promise<DocumentRecord[]> {
     return deps.documents.listByUser(userId);
   }
@@ -242,6 +334,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
 
   return {
     createDocument,
+    retryDocument,
     listDocuments,
     getDocumentById,
     deleteDocument,

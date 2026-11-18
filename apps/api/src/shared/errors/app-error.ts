@@ -4,6 +4,7 @@ export type AppErrorCode =
   | "FILE_TOO_LARGE"
   | "UNSUPPORTED_FILE_TYPE"
   | "NOT_FOUND"
+  | "CONFLICT"
   | "UNREADABLE_FILE"
   | "AI_TIMEOUT"
   | "AI_RATE_LIMIT"
