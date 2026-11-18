@@ -1,16 +1,21 @@
 import type { FastifyPluginCallback } from "fastify";
+
 import type { Env } from "@/config/env";
+import { AppError } from "@/shared/errors/app-error";
+
 import {
   generateOAuthState,
   validateOAuthState,
   GOOGLE_OAUTH_STATE_COOKIE,
   GOOGLE_OAUTH_STATE_TTL_SECONDS,
 } from "./oauth-state";
+
 import {
   createSessionToken,
   SESSION_COOKIE,
   SESSION_TTL_SECONDS,
 } from "./session";
+
 import { authenticate } from "./authenticate";
 
 export function authRoutes(env: Env): FastifyPluginCallback {
@@ -58,9 +63,11 @@ export function authRoutes(env: Env): FastifyPluginCallback {
       reply.clearCookie(GOOGLE_OAUTH_STATE_COOKIE, stateCookieOptions);
 
       if (!validateOAuthState(receivedState, storedState)) {
-        return reply.code(400).send({
-          error: "Invalid authentication request",
-        });
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "Solicitação de autenticação inválida.",
+          400,
+        );
       }
 
       if (
@@ -68,9 +75,11 @@ export function authRoutes(env: Env): FastifyPluginCallback {
         typeof query.code !== "string" ||
         !query.code
       ) {
-        return reply.code(400).send({
-          error: "Google authentication was not completed",
-        });
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "A autenticação com o Google não foi concluída.",
+          400,
+        );
       }
 
       let identity;
@@ -82,9 +91,11 @@ export function authRoutes(env: Env): FastifyPluginCallback {
       } catch {
         request.log.warn("Google OAuth verification failed");
 
-        return reply.code(401).send({
-          error: "Google authentication failed",
-        });
+        throw new AppError(
+          "UNAUTHORIZED",
+          "Não foi possível autenticar com o Google.",
+          401,
+        );
       }
 
       const user = await app.prisma.user.upsert({
@@ -119,13 +130,11 @@ export function authRoutes(env: Env): FastifyPluginCallback {
       {
         preHandler: authenticate(env),
       },
-      async (request, reply) => {
+      async (request) => {
         const user = request.currentUser;
 
         if (!user) {
-          return reply.code(401).send({
-            error: "Unauthorized",
-          });
+          throw new AppError("UNAUTHORIZED", "Autenticação necessária.", 401);
         }
 
         return {

@@ -1,20 +1,17 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
+
 import type { Env } from "@/config/env";
+import { AppError } from "@/shared/errors/app-error";
+
 import type { AuthenticatedUser } from "./auth-types";
 import { SESSION_COOKIE, verifySessionToken } from "./session";
 
 export function authenticate(env: Env) {
-  return async (
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> => {
+  return async (request: FastifyRequest): Promise<void> => {
     const token = request.cookies[SESSION_COOKIE];
 
     if (!token) {
-      await reply.code(401).send({
-        error: "Unauthorized",
-      });
-      return;
+      throw new AppError("UNAUTHORIZED", "Autenticação necessária.", 401);
     }
 
     let userId: string;
@@ -22,10 +19,7 @@ export function authenticate(env: Env) {
     try {
       userId = await verifySessionToken(token, env);
     } catch {
-      await reply.code(401).send({
-        error: "Unauthorized",
-      });
-      return;
+      throw new AppError("UNAUTHORIZED", "Sessão inválida ou expirada.", 401);
     }
 
     const user = await request.server.prisma.user.findUnique({
@@ -39,10 +33,7 @@ export function authenticate(env: Env) {
     });
 
     if (!user) {
-      await reply.code(401).send({
-        error: "Unauthorized",
-      });
-      return;
+      throw new AppError("UNAUTHORIZED", "Sessão inválida ou expirada.", 401);
     }
 
     const authenticatedUser: AuthenticatedUser = user;
