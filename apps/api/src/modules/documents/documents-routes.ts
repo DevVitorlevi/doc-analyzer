@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback } from "fastify";
 
 import type { Env } from "@/config/env";
+
 import { authenticate } from "@/modules/auth/authenticate";
 
 import {
@@ -8,7 +9,9 @@ import {
   createDocumentHandler,
   createGetDocumentHandler,
   createListDocumentsHandler,
+  createRetryDocumentHandler,
 } from "./documents-controller";
+
 import type { DocumentService } from "./documents-service";
 
 export function documentsRoutes(
@@ -22,6 +25,12 @@ export function documentsRoutes(
       "/documents",
       { preHandler: auth },
       createDocumentHandler(service),
+    );
+
+    app.post(
+      "/documents/:id/retry",
+      { preHandler: auth },
+      createRetryDocumentHandler(service),
     );
 
     app.get(

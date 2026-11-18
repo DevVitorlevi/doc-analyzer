@@ -9,6 +9,7 @@ import {
   toDocumentListItemResponse,
   toDocumentResponse,
 } from "./documents-schemas";
+
 import type { DocumentService } from "./documents-service";
 
 interface UploadForm {
@@ -115,6 +116,33 @@ export function createDocumentHandler(service: DocumentService) {
     });
 
     return reply.code(201).send(toDocumentResponse(document));
+  };
+}
+
+export function createRetryDocumentHandler(service: DocumentService) {
+  return async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<FastifyReply> => {
+    const user = request.currentUser;
+
+    if (!user) {
+      throw new AppError("UNAUTHORIZED", "Sessão inválida ou expirada.", 401);
+    }
+
+    const params = documentIdParamsSchema.safeParse(request.params);
+
+    if (!params.success) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        params.error.issues[0]?.message ?? "Parâmetros inválidos.",
+        400,
+      );
+    }
+
+    const document = await service.retryDocument(params.data.id, user.id);
+
+    return reply.code(200).send(toDocumentResponse(document));
   };
 }
 
