@@ -17,13 +17,11 @@
     "types": ["node", "vitest/globals"]
   },
   "include": [
-    "app.ts",
     "src",
     "tests",
     "prisma",
     "scripts",
     "vitest.unit.config.ts",
-    "vitest.integration.config.ts",
-    "tsup.config.ts"
+    "vitest.integration.config.ts"
   ]
 }
