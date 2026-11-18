@@ -17,7 +17,7 @@ describe("assertTestDatabase", () => {
 
   it("rejects an invalid database URL", () => {
     expect(() => assertTestDatabase("invalid-url")).toThrow(
-      "Invalid test database URL",
+      "Invalid database URL",
     );
   });
 

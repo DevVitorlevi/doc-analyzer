@@ -1,7 +1,9 @@
 import Fastify, { type FastifyInstance } from "fastify";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { AppError } from "@/shared/errors/app-error";
+
 import { registerErrorHandler } from "@/shared/errors/error-handler";
 
 describe("error handler", () => {
@@ -20,6 +22,14 @@ describe("error handler", () => {
 
     app.get("/boom", async () => {
       throw new Error("secret internal detail");
+    });
+
+    app.get("/multipart-files-limit", async () => {
+      const error = Object.assign(new Error("Too many files"), {
+        code: "FST_FILES_LIMIT",
+      });
+
+      throw error;
     });
 
     app.post("/json", async () => ({ ok: true }));
@@ -76,6 +86,21 @@ describe("error handler", () => {
 
     expect(response.body).not.toContain("secret");
     expect(response.body).not.toContain("stack");
+  });
+
+  it("maps multipart file limit errors to VALIDATION_ERROR", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/multipart-files-limit",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Requisição inválida.",
+      },
+    });
   });
 
   it("maps malformed JSON to VALIDATION_ERROR", async () => {

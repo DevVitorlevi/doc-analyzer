@@ -40,6 +40,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     if (
+      error.code === "FST_FILES_LIMIT" ||
       error.code === "FST_ERR_VALIDATION" ||
       error.code === "FST_ERR_CTP_INVALID_JSON_BODY"
     ) {

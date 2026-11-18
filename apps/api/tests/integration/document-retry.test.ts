@@ -2,8 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { AiAnalysisError } from "@/integrations/openai/ai-analysis-error";
+
 import { createFakeDocumentAnalyzer } from "../helpers/fake-document-analyzer";
 import { createFakeStorage } from "../helpers/fake-storage";
+import { makePdf } from "../helpers/document-fixtures";
 import { useIntegrationDatabase } from "../helpers/integration-hooks";
 import { loginAndGetCookie } from "../helpers/login";
 
@@ -137,7 +140,7 @@ describe("POST /documents/:id/retry", () => {
     expect(analyzerFake.calls).toHaveLength(0);
   });
 
-  it("returns 409 when the document is not FAILED", async () => {
+  it("returns 409 when the document is COMPLETED", async () => {
     const cookie = await loginAndGetCookie(getApp());
     const user = await getApp().prisma.user.findFirstOrThrow();
 
@@ -152,6 +155,31 @@ describe("POST /documents/:id/retry", () => {
         originalName: "contrato.txt",
         mimeType: "text/plain",
         sizeBytes: 100,
+      },
+    });
+
+    const response = await getApp().inject({
+      method: "POST",
+      url: `/documents/${document.id}/retry`,
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error.code).toBe("CONFLICT");
+    expect(analyzerFake.calls).toHaveLength(0);
+  });
+
+  it("returns 409 when the document is already PROCESSING", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+    const user = await getApp().prisma.user.findFirstOrThrow();
+    const document = await createFailedDocument(user.id);
+
+    await getApp().prisma.document.update({
+      where: { id: document.id },
+      data: {
+        status: "PROCESSING",
+        errorCode: null,
+        errorMessage: null,
       },
     });
 
@@ -203,5 +231,124 @@ describe("POST /documents/:id/retry", () => {
 
     expect(updatedDocument?.status).toBe("FAILED");
     expect(updatedDocument?.errorCode).toBe("STORAGE_ERROR");
+  });
+
+  it("keeps the document FAILED when the analysis fails again", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+    const user = await getApp().prisma.user.findFirstOrThrow();
+    const document = await createFailedDocument(user.id);
+
+    storageFake.objects.set(document.s3Key, {
+      body: Buffer.from("Conteúdo para análise."),
+      contentType: document.mimeType,
+    });
+
+    analyzerFake.failWith(new AiAnalysisError("AI_TIMEOUT"));
+
+    const response = await getApp().inject({
+      method: "POST",
+      url: `/documents/${document.id}/retry`,
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: document.id,
+      status: "FAILED",
+      errorCode: "AI_TIMEOUT",
+      analysis: null,
+    });
+
+    const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: document.id },
+    });
+
+    expect(updatedDocument.status).toBe("FAILED");
+    expect(updatedDocument.errorCode).toBe("AI_TIMEOUT");
+    expect(analyzerFake.calls).toHaveLength(1);
+  });
+
+  it("marks an unreadable PDF as FAILED without calling the AI", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+    const user = await getApp().prisma.user.findFirstOrThrow();
+
+    const document = await getApp().prisma.document.create({
+      data: {
+        userId: user.id,
+        title: "PDF escaneado",
+        instruction: "Resuma o documento",
+        analysis: null,
+        status: "FAILED",
+        errorCode: "AI_ERROR",
+        errorMessage: "Falha anterior.",
+        s3Key: `${user.id}/${randomUUID()}.pdf`,
+        originalName: "escaneado.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 100,
+        truncated: false,
+      },
+    });
+
+    storageFake.objects.set(document.s3Key, {
+      body: makePdf([[]]),
+      contentType: "application/pdf",
+    });
+
+    const response = await getApp().inject({
+      method: "POST",
+      url: `/documents/${document.id}/retry`,
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: document.id,
+      status: "FAILED",
+      errorCode: "UNREADABLE_FILE",
+    });
+
+    expect(analyzerFake.calls).toHaveLength(0);
+  });
+
+  it("allows only one concurrent retry to process the document", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+    const user = await getApp().prisma.user.findFirstOrThrow();
+    const document = await createFailedDocument(user.id);
+
+    storageFake.objects.set(document.s3Key, {
+      body: Buffer.from("Conteúdo do contrato."),
+      contentType: document.mimeType,
+    });
+
+    const gate = analyzerFake.pause();
+
+    try {
+      const firstRequest = getApp().inject({
+        method: "POST",
+        url: `/documents/${document.id}/retry`,
+        headers: { cookie },
+      });
+
+      await gate.started;
+
+      const secondResponse = await getApp().inject({
+        method: "POST",
+        url: `/documents/${document.id}/retry`,
+        headers: { cookie },
+      });
+
+      expect(secondResponse.statusCode).toBe(409);
+      expect(secondResponse.json().error.code).toBe("CONFLICT");
+
+      gate.release();
+
+      const firstResponse = await firstRequest;
+
+      expect(firstResponse.statusCode).toBe(200);
+      expect(firstResponse.json().status).toBe("COMPLETED");
+      expect(analyzerFake.calls).toHaveLength(1);
+    } finally {
+      gate.release();
+    }
   });
 });

@@ -1,8 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { useIntegrationDatabase } from "../helpers/integration-hooks";
+
 import { assertTestDatabase } from "../helpers/assert-test-database";
+import { useIntegrationDatabase } from "../helpers/integration-hooks";
 import { resetTestDatabase } from "../helpers/reset-test-database";
+import { createIntegrationEnv } from "../helpers/setup-integration";
 
 describe("Integration tests", () => {
   const { getApp } = useIntegrationDatabase();
@@ -17,6 +19,13 @@ describe("Integration tests", () => {
     expect(response.json<{ status: string }>()).toEqual({
       status: "ok",
     });
+  });
+
+  it("uses TEST_DATABASE_URL as the application database URL", () => {
+    const env = createIntegrationEnv();
+
+    expect(env.DATABASE_URL).toBe(process.env.TEST_DATABASE_URL);
+    expect(env.TEST_DATABASE_URL).toBe(process.env.TEST_DATABASE_URL);
   });
 
   it("clears users and documents from the test database", async () => {

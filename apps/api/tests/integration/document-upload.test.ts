@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { AiAnalysisError } from "@/integrations/openai/ai-analysis-error";
+
 import { createFakeDocumentAnalyzer } from "../helpers/fake-document-analyzer";
 import { createFakeStorage } from "../helpers/fake-storage";
 import { makeDocx, makePdf } from "../helpers/document-fixtures";
@@ -46,8 +48,9 @@ describe("POST /documents", () => {
     filename: string,
     content: Buffer,
     contentType = "application/octet-stream",
+    name = "file",
   ) {
-    return { name: "file", filename, contentType, content };
+    return { name, filename, contentType, content };
   }
 
   async function expectNothingPersisted(): Promise<void> {
@@ -283,6 +286,85 @@ describe("POST /documents", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    await expectNothingPersisted();
+  });
+
+  it("rejects a missing instruction", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+
+    const response = await upload(
+      [
+        { name: "title", value: "Contrato" },
+        filePart("a.txt", Buffer.from("texto")),
+      ],
+      cookie,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    await expectNothingPersisted();
+  });
+
+  it("rejects an instruction longer than 2000 characters", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+
+    const response = await upload(
+      [
+        ...fields("Contrato", "i".repeat(2001)),
+        filePart("a.txt", Buffer.from("texto")),
+      ],
+      cookie,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    await expectNothingPersisted();
+  });
+
+  it("rejects an empty file", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+
+    const response = await upload(
+      [...fields(), filePart("vazio.txt", Buffer.alloc(0))],
+      cookie,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    await expectNothingPersisted();
+  });
+
+  it("rejects a file sent using the wrong field name", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+
+    const response = await upload(
+      [
+        ...fields(),
+        filePart("a.txt", Buffer.from("texto"), "text/plain", "attachment"),
+      ],
+      cookie,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+    await expectNothingPersisted();
+  });
+
+  it("rejects repeated file fields", async () => {
+    const cookie = await loginAndGetCookie(getApp());
+
+    const response = await upload(
+      [
+        ...fields(),
+        filePart("primeiro.txt", Buffer.from("primeiro")),
+        filePart("segundo.txt", Buffer.from("segundo")),
+      ],
+      cookie,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe("VALIDATION_ERROR");
+
     await expectNothingPersisted();
   });
 
