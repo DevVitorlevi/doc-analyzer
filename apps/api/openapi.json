@@ -1,0 +1,680 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Doc Analyzer API",
+    "version": "1.0.0",
+    "description": "API para autenticação com Google, upload e gerenciamento de documentos e análise de conteúdo."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3333",
+      "description": "Ambiente local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Verificação de disponibilidade da API"
+    },
+    {
+      "name": "Authentication",
+      "description": "Autenticação e gerenciamento de sessão"
+    },
+    {
+      "name": "Documents",
+      "description": "Upload, consulta, reprocessamento e exclusão de documentos"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "doc_analyzer_session",
+        "description": "Cookie HTTP-only criado após a autenticação com Google."
+      }
+    },
+    "schemas": {
+      "DocumentStatus": {
+        "type": "string",
+        "enum": ["PROCESSING", "COMPLETED", "FAILED"]
+      },
+      "DocumentProcessingErrorCode": {
+        "type": "string",
+        "description": "Código de uma falha registrada durante o processamento ou a análise do documento.",
+        "enum": [
+          "UNREADABLE_FILE",
+          "AI_TIMEOUT",
+          "AI_RATE_LIMIT",
+          "AI_ERROR",
+          "STORAGE_ERROR",
+          "INTERNAL_ERROR"
+        ]
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "instruction",
+          "status",
+          "analysis",
+          "truncated",
+          "errorCode",
+          "errorMessage",
+          "originalName",
+          "mimeType",
+          "sizeBytes",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "analysis": {
+            "type": "string",
+            "nullable": true,
+            "description": "Resultado da análise, quando disponível."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Indica se o texto extraído foi truncado antes da análise."
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true,
+            "description": "Código da falha de processamento ou análise, quando houver.",
+            "enum": [
+              "UNREADABLE_FILE",
+              "AI_TIMEOUT",
+              "AI_RATE_LIMIT",
+              "AI_ERROR",
+              "STORAGE_ERROR",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "errorMessage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Descrição da falha de processamento ou análise, quando houver."
+          },
+          "originalName": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DocumentListItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "createdAt",
+          "sizeBytes",
+          "mimeType",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          }
+        }
+      },
+      "DocumentDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentResponse"
+          },
+          {
+            "type": "object",
+            "required": ["fileUrl"],
+            "properties": {
+              "fileUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL temporária assinada para acessar o arquivo original."
+              }
+            }
+          }
+        ]
+      },
+      "UserResponse": {
+        "type": "object",
+        "required": ["id", "name", "email", "picture"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "picture": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Código do erro retornado pela API.",
+                "enum": [
+                  "UNAUTHORIZED",
+                  "VALIDATION_ERROR",
+                  "FILE_TOO_LARGE",
+                  "UNSUPPORTED_FILE_TYPE",
+                  "NOT_FOUND",
+                  "CONFLICT",
+                  "STORAGE_ERROR",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Usuário não autenticado ou sessão inválida.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Dados de entrada inválidos, incluindo parâmetros UUID em formato incorreto.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Recurso não encontrado ou indisponível para o usuário.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Operação incompatível com o estado atual do recurso.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Erro interno inesperado.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "StorageError": {
+        "description": "Falha ao acessar o armazenamento de arquivos.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Verifica a disponibilidade da API",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "API disponível."
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Inicia a autenticação com Google",
+        "operationId": "startGoogleAuthentication",
+        "responses": {
+          "302": {
+            "description": "Redirecionamento para a página de autenticação do Google."
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Processa o retorno da autenticação com Google",
+        "description": "Valida o parâmetro state recebido e sua correspondência com o cookie temporário criado no início do fluxo OAuth. Para concluir a autenticação, o provedor deve retornar um code válido. Caso o provedor retorne error ou o código de autorização esteja ausente ou inválido, a autenticação não será concluída.",
+        "operationId": "googleAuthenticationCallback",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "description": "Estado OAuth recebido no início da autenticação. Deve corresponder ao valor armazenado no cookie temporário.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "description": "Código de autorização retornado pelo Google em uma autenticação bem-sucedida.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "description": "Código de erro retornado pelo provedor quando a autenticação não é autorizada.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Autenticação processada. Redirecionamento para a aplicação web."
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Retorna os dados do usuário autenticado",
+        "operationId": "getCurrentUser",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados do usuário autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Encerra a sessão do usuário",
+        "operationId": "logout",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sessão encerrada e cookie removido."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/documents": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Envia um documento para análise",
+        "description": "Recebe um arquivo PDF, DOCX ou TXT por multipart/form-data. O limite de tamanho do arquivo é configurável por MAX_FILE_SIZE_MB. O texto extraído é limitado por MAX_TEXT_CHARS. A criação retorna HTTP 201 mesmo quando a análise falha após a persistência: nesse caso, o documento é retornado com status FAILED e os campos de erro preenchidos.",
+        "operationId": "uploadDocument",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "instruction", "file"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "Título do documento."
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "description": "Instrução usada para orientar a análise."
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Arquivo PDF, DOCX ou TXT. Limite padrão de 10 MB, configurável por MAX_FILE_SIZE_MB."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Documento criado. O status pode ser PROCESSING, COMPLETED ou FAILED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "413": {
+            "description": "Arquivo maior que o limite permitido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Tipo de arquivo não suportado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "$ref": "#/components/responses/StorageError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Lista os documentos do usuário autenticado",
+        "operationId": "listDocuments",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de documentos do usuário.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentListItem"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/documents/{id}/retry": {
+      "post": {
+        "tags": ["Documents"],
+        "summary": "Tenta processar novamente um documento",
+        "description": "O reprocessamento só é permitido para documentos com status FAILED. A operação pode retornar HTTP 200 com o documento em status FAILED novamente se o processamento falhar.",
+        "operationId": "retryDocument",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador UUID do documento.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documento após a tentativa de reprocessamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/documents/{id}": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Busca os detalhes de um documento",
+        "description": "Retorna os dados do documento e uma URL assinada temporária para acessar o arquivo original. A URL tem validade padrão de 300 segundos.",
+        "operationId": "getDocument",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador UUID do documento.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhes do documento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "502": {
+            "$ref": "#/components/responses/StorageError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Documents"],
+        "summary": "Exclui um documento",
+        "operationId": "deleteDocument",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador UUID do documento.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Documento excluído."
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "502": {
+            "$ref": "#/components/responses/StorageError"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    }
+  }
+}
