@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w apps/api",
+    "start": "npm run start -w apps/api",
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
