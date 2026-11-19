@@ -1,7 +1,5 @@
+import AppProviders from "./providers";
+
 export default function App() {
-  return (
-    <main>
-      <h1>Jus Digital</h1>
-    </main>
-  );
+  return <AppProviders />;
 }
