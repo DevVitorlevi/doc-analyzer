@@ -1,0 +1,203 @@
+/*
+ * Tokens visuais do Jus Digital.
+ *
+ * Origem: TOKENS_FIGMA.md — extração manual dos frames F1–F6.
+ * Não representa uma exportação oficial de Figma Variables.
+ *
+ * Valores extraídos e decisões técnicas estão identificados
+ * separadamente. Decisões técnicas podem ser ajustadas após
+ * comparação visual com o protótipo.
+ */
+
+@theme {
+  /* Paleta obrigatória [U] */
+  --color-primary: #30a46c;
+  --color-surface: #fcfcfd;
+  --color-border: #d9d9e0;
+  --color-primary-soft: #5bb98b;
+  --color-error: #e5484d;
+  --color-success: #34c759;
+
+  /* Cores adicionais extraídas dos frames */
+  --color-surface-white: #ffffff;
+  --color-preview: #f9f9fb;
+  --color-control-secondary: #f0f0f3;
+  --color-text-primary: #1c2024;
+  --color-selection: #e6f4fe;
+  --color-text-secondary: #60646c;
+  --color-sidebar-text: #fbfefc;
+  --color-sidebar-text-secondary: #c4e8d1;
+  --color-document-card: #f6f6f6;
+}
+
+:root {
+  /* Família tipográfica */
+  --font-family-ui: "Geist Variable", system-ui, sans-serif;
+
+  /* Tipografia extraída dos frames */
+  --font-size-page-title: 32px;
+  --font-weight-page-title: 600;
+  --line-height-page-title: 40px;
+
+  --font-size-empty-title: 24px;
+  --font-weight-empty-title: 500;
+  --line-height-empty-title: 32px;
+
+  --font-size-selection-counter: 20px;
+  --font-weight-selection-counter: 500;
+  --line-height-selection-counter: 24px;
+  --letter-spacing-selection-counter: 0.15px;
+
+  --font-size-dialog-title: 20px;
+  --font-weight-dialog-title: 500;
+  --line-height-dialog-title: 20px;
+
+  --font-size-organization: 14px;
+  --font-weight-organization: 600;
+  --line-height-organization: 20px;
+
+  --font-size-user-name: 14px;
+  --font-weight-user-name: 600;
+  --line-height-user-name: 20px;
+
+  --font-size-empty-description: 16px;
+  --font-weight-empty-description: 400;
+  --line-height-empty-description: 24px;
+
+  --font-size-secondary-description: 12px;
+  --font-weight-secondary-description: 400;
+  --line-height-secondary-description: 16px;
+
+  --font-size-user-email: 12px;
+  --font-weight-user-email: 400;
+  --line-height-user-email: 16px;
+
+  /* Espaçamentos observados */
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+
+  /* Raios extraídos */
+  --radius-action-bar: 4px;
+  --radius-thumbnail: 4px;
+  --radius-menu-item: 6px;
+  --radius-card: 8px;
+  --radius-input: 8px;
+  --radius-container: 12px;
+  --radius-dialog: 12px;
+  --radius-dropdown: 12px;
+  --radius-preview-content: 12px;
+  --radius-button: 12px;
+  --radius-close-button: 12px;
+
+  /* Sombras extraídas */
+  --shadow-container: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-overlay-panel: 0 4px 8px 0 rgba(0, 0, 0, 0.04);
+
+  /* Dimensões extraídas */
+  --sidebar-width: 255px;
+  --main-content-top: 80px;
+  --main-content-padding: 24px;
+
+  --upload-dialog-width: 480px;
+  --upload-dialog-height: 408px;
+  --upload-dialog-header-height: 52px;
+  --upload-dialog-preview-height: 128px;
+  --upload-dialog-body-height: 228px;
+
+  --title-field-height: 58px;
+  --instruction-field-height: 82px;
+  --analysis-field-height: 130px;
+
+  --document-card-width: 117.5px;
+  --document-card-height: 140px;
+  --thumbnail-width: 67px;
+  --thumbnail-height: 96px;
+  --document-menu-width: 280px;
+  --document-menu-height: 84px;
+
+  /*
+   * Decisões técnicas de interação.
+   * Não são valores extraídos do Figma.
+   */
+
+  /* Cores semânticas das ações */
+  --color-view-action: var(--color-primary);
+  --color-delete-action: var(--color-error);
+
+  /* Cores de ação com tonalidade mais escura */
+  --color-primary-action: var(--color-primary);
+
+  --color-danger-action: var(--color-error);
+
+  /* Hover */
+  --color-primary-hover: color-mix(in srgb, var(--color-primary-action) 88%, black);
+
+  --color-danger-hover: color-mix(in srgb, var(--color-danger-action) 88%, black);
+
+  --color-control-hover: color-mix(
+    in srgb,
+    var(--color-control-secondary) 88%,
+    black
+  );
+
+  --color-card-hover: color-mix(
+    in srgb,
+    var(--color-document-card) 92%,
+    black
+  );
+
+  /* Active */
+  --color-primary-active: color-mix(
+    in srgb,
+    var(--color-primary-action) 80%,
+    black
+  );
+
+  --color-danger-active: color-mix(
+    in srgb,
+    var(--color-danger-action) 80%,
+    black
+  );
+
+  --color-control-active: color-mix(
+    in srgb,
+    var(--color-control-secondary) 82%,
+    black
+  );
+
+  /* Overlay e modal */
+  --z-index-modal-scrim: 1000;
+  --z-index-modal: 1001;
+  --color-modal-scrim: rgb(0 0 0 / 32%);
+
+  /* Foco, desabilitado e transições */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --disabled-opacity: 0.5;
+  --interaction-transition-duration: 150ms;
+
+  /* Bordas */
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+  --border-style-dropzone: dashed;
+
+  /* Dimensões técnicas de componentes */
+  --button-min-height: 40px;
+  --button-padding-x: 16px;
+  --icon-button-size: 36px;
+  --menu-item-min-height: 40px;
+  --menu-item-padding-x: 12px;
+  --modal-viewport-gutter: 16px;
+
+  /* Ícones */
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --icon-stroke-width: 2px;
+}

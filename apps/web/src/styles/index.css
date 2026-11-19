@@ -1,16 +1,8 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist";
-
-@theme {
-  --color-primary: #30A46C;
-  --color-surface: #FCFCFD;
-  --color-border: #D9D9E0;
-  --color-primary-soft: #5BB98B;
-  --color-error: #E5484D;
-  --color-success: #34C759;
-}
+@import "./tokens.css";
 
 body {
   background-color: var(--color-surface);
-  font-family: "Geist Variable", system-ui, sans-serif;
+  font-family: var(--font-family-ui);
 }
