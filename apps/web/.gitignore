@@ -1,2 +1,18 @@
-dist
-node_modules
+# Build e dependências
+dist/
+node_modules/
+
+# Arquivos de ambiente
+.env
+.env.*
+!.env.example
+!.env.e2e.example
+
+# Sessões e relatórios do Playwright
+playwright/.auth/
+playwright/.sessions/
+playwright/.state/
+playwright/.storage/
+test-results/
+playwright-report/
+blob-report/
