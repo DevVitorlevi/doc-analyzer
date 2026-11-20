@@ -28,8 +28,8 @@ O **Jus Digital Document Analyzer** centraliza o envio e a análise de documento
 
 ### Componentes da Arquitetura
 
-- **Frontend (`apps/web`)**: Single Page Application (SPA) em React, TypeScript (`strict: true`) e Vite, com estilização via Tailwind CSS v4, tokens visuais em CSS variables, fonte **Geist** autohospedada, `@tanstack/react-query` para estado de servidor e primitivas acessíveis do Radix UI. Hospedado na **Vercel**.
-- **Backend (`apps/api`)**: API REST em Node.js (`>= 20.16`) com TypeScript e Fastify, utilizando Prisma ORM e PostgreSQL, integração com Google OAuth 2.0, extração de texto, análise via OpenAI (`gpt-4o-mini`) e storage S3-compatível via `@aws-sdk/client-s3`. Hospedado no **Railway**.
+- **Frontend (`apps/web`)**: Single Page Application (SPA) em React, TypeScript e Vite, com estilização via Tailwind CSS, tokens visuais em CSS variables, fonte **Geist** autohospedada, `@tanstack/react-query` para estado de servidor e primitivas acessíveis do Radix UI. Hospedado na **Vercel**.
+- **Backend (`apps/api`)**: API REST em Node.js com TypeScript e Fastify, utilizando Prisma ORM e PostgreSQL, integração com Google OAuth 2.0, extração de texto, análise via OpenAI (`gpt-4o-mini`) e storage S3-compatível via `@aws-sdk/client-s3`. Hospedado no **Railway**.
 - **Banco de Dados**: PostgreSQL gerenciado via Prisma ORM (`apps/api/prisma/schema.prisma`), com instâncias separadas para desenvolvimento e testes de integração no Docker Compose.
 - **Serviços Externos**: Google OAuth 2.0 (autenticação), Backblaze B2 (armazenamento de objetos compatível com S3) e OpenAI API (análise de conteúdo).
 
@@ -56,7 +56,7 @@ flowchart LR
 
 ## 2. Frontend (`apps/web`)
 
-- **Stack e Bibliotecas**: React, TypeScript (`strict: true`), Vite (porta `5173` em desenvolvimento com `strictPort`), Tailwind CSS v4, Radix UI (`Dialog`, `AlertDialog`, `DropdownMenu`), `lucide-react`, `sonner`, `@tanstack/react-query` e `pdfjs-dist` (`5.4.149` para renderização da capa da primeira página de PDF na prévia de upload).
+- **Stack e Bibliotecas**: React, TypeScript, Vite (porta `5173` em desenvolvimento com `strictPort`), Tailwind CSS, Radix UI (`Dialog`, `AlertDialog`, `DropdownMenu`), `lucide-react`, `sonner`, `@tanstack/react-query` e `pdfjs-dist` (`5.4.149` para renderização da capa da primeira página de PDF na prévia de upload).
 - **Identidade Visual**: Tokens da paleta obrigatória (`#30A46C` primária, `#FCFCFD` superfície, `#D9D9E0` bordas, `#5BB98B` verde secundário, `#E5484D` erro, `#34C759` sucesso), tokens adicionais em `src/styles/tokens.css` e fonte **Geist** autohospedada (sem requisição a CDN).
 - **Estrutura de Diretórios**:
   - `src/app/`: inicialização da aplicação, `providers.tsx`, `query-client.ts`, `router.tsx` (`/`, `/login`, `/app/documentos`, `*`) e tratamento de expiração de sessão (`401`).
@@ -72,7 +72,7 @@ flowchart LR
 
 ## 3. Backend (`apps/api`)
 
-- **Linguagem e Frameworks**: Node.js (`>= 20.16`), TypeScript, Fastify, Prisma ORM e PostgreSQL.
+- **Linguagem e Frameworks**: Node.js, TypeScript, Fastify, Prisma ORM e PostgreSQL.
 - **Organização**:
   - `src/config/env.ts` e `src/app.ts`: carregamento de variáveis de ambiente, registro de plugins (incluindo CORS e rotas) e inicialização do Fastify.
   - `src/modules/auth/`, `src/modules/documents/` e `src/modules/health/`: rotas, controladores, schemas e serviços de autenticação, documentos e saúde.
@@ -197,8 +197,6 @@ A integração atual do projeto utiliza o **Backblaze B2** via API compatível c
    - `S3_BUCKET`: Nome do bucket S3.
 4. **CORS e Presigned URLs**: Se houver acesso direto do navegador via presigned URL, configure a regra CORS no bucket S3 permitindo a origem da aplicação e os métodos/headers necessários. A geração de presigned URLs segue o mesmo padrão do SDK S3.
 5. **O que Muda vs. o que Permanece Igual**: Como o backend já utiliza o SDK oficial da AWS (`@aws-sdk/client-s3`), os comandos S3 e o fluxo da aplicação permanecem iguais; a adaptação concentra-se na infraestrutura AWS e nas variáveis de ambiente de endpoint/região/credenciais/bucket.
-
-> **Pontuação no desafio**: A integração direta com a AWS S3 concede bônus de `+5 pontos`. A adoção do Backblaze B2 compatível com S3 atendendo aos requisitos do desafio não gera penalidade, apenas não recebe esse bônus específico.
 
 ---
 
