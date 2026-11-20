@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 
+import AppShell from "@/components/layout/AppShell";
 import RequireAuth from "@/features/auth/RequireAuth";
 import LoginPage from "@/features/auth/LoginPage";
 import { useSession } from "@/features/auth/use-session";
@@ -34,11 +35,7 @@ function RootRedirect() {
 }
 
 function DocumentsPlaceholder() {
-  return (
-    <main>
-      <h1>Documentos</h1>
-    </main>
-  );
+  return <h1>Documentos</h1>;
 }
 
 export const appRoutes: RouteObject[] = [
@@ -54,8 +51,13 @@ export const appRoutes: RouteObject[] = [
     element: <RequireAuth />,
     children: [
       {
-        path: "/app/documentos",
-        element: <DocumentsPlaceholder />,
+        element: <AppShell />,
+        children: [
+          {
+            path: "/app/documentos",
+            element: <DocumentsPlaceholder />,
+          },
+        ],
       },
     ],
   },
