@@ -446,13 +446,9 @@ npm run build -w apps/api
 
 <a id="decisoes"></a>
 
-## 13. Decisões Técnicas e Limitações Conhecidas
+## 13. Decisões Técnicas
 
 - **Proxy Same-Origin via Rewrites na Vercel**: Evita restrições de cookies *cross-site* entre domínios distintos do frontend e da API em navegadores modernos, sem exigir alterações no código de cookies da API.
 - **Autenticação por Cookie HTTP-Only e `GET /me`**: Impede acesso a tokens de sessão via JavaScript (`localStorage`/`sessionStorage`) e verifica a sessão ativamente pelo backend.
 - **Exclusão Sequencial no Frontend**: A exclusão de múltiplos documentos dispara `DELETE /documents/:id` em sequência (sem endpoint de lote), continuando após falhas individuais, mantendo selecionados os itens que falharem e invalidando a lista ao término.
 - **Sem Polling Contínuo**: A atualização da lista e de status (`PROCESSING` / `COMPLETED` / `FAILED`) ocorre após mutações, ao abrir detalhes/retry ou ao revalidar consultas (inclusive ao retornar o foco à janela).
-- **Limitações Conhecidas**:
-  - Sem paginação, busca, filtros, ordenação, tags, pastas ou edição/renomeação de documentos.
-  - Em falhas no callback OAuth, a resposta de erro JSON da API na rota de callback não é interceptada pela SPA.
-  - A exclusão entre storage externo e banco de dados não ocorre sob uma única transação distribuída.
