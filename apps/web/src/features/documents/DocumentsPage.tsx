@@ -2,15 +2,18 @@ import { Plus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
 
 import DocumentGrid from "./components/DocumentGrid";
 import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import SelectionBar from "./components/SelectionBar";
 import { useDocuments } from "./queries";
+import { useFilePicker } from "./use-file-picker";
 
 const LOADING_SKELETON_COUNT = 4;
 const LOADING_LABEL = "Carregando documentos...";
 const LOAD_ERROR_MESSAGE = "Não foi possível carregar seus documentos.";
+const FILE_INPUT_LABEL = "Selecionar arquivo";
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 const skeletonItems = Array.from(
@@ -25,6 +28,7 @@ function formatDocumentCount(count: number): string {
 export default function DocumentsPage() {
   const documents = useDocuments();
   const documentItems = documents.data;
+  const { inputRef, openPicker, handleInputChange } = useFilePicker();
 
   const [selectedIds, setSelectedIds] =
     useState<ReadonlySet<string>>(EMPTY_SELECTION);
@@ -78,10 +82,20 @@ export default function DocumentsPage() {
             <div className="ml-auto flex flex-wrap items-center gap-(--space-8)">
               <SelectionBar selectedCount={selectedDocumentIds.size} />
 
-              <Button className="pl-5 pr-6">
+              <Button className="pl-5 pr-6" onClick={openPicker}>
                 <Plus aria-hidden="true" className="size-5 shrink-0" />
                 Adicionar documento
               </Button>
+
+              <input
+                ref={inputRef}
+                type="file"
+                accept={FILE_INPUT_ACCEPT}
+                aria-label={FILE_INPUT_LABEL}
+                className="hidden"
+                tabIndex={-1}
+                onChange={handleInputChange}
+              />
             </div>
           </div>
         )}
