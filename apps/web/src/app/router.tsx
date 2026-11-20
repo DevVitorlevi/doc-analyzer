@@ -5,6 +5,7 @@ import AppShell from "@/components/layout/AppShell";
 import RequireAuth from "@/features/auth/RequireAuth";
 import LoginPage from "@/features/auth/LoginPage";
 import { useSession } from "@/features/auth/use-session";
+import DocumentsPage from "@/features/documents/DocumentsPage";
 import { ApiError } from "@/lib/http";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -34,10 +35,6 @@ function RootRedirect() {
   return <Navigate to="/app/documentos" replace />;
 }
 
-function DocumentsPlaceholder() {
-  return <h1>Documentos</h1>;
-}
-
 export const appRoutes: RouteObject[] = [
   {
     path: "/",
@@ -55,7 +52,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           {
             path: "/app/documentos",
-            element: <DocumentsPlaceholder />,
+            element: <DocumentsPage />,
           },
         ],
       },
