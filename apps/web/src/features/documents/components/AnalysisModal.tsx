@@ -17,7 +17,7 @@ import { notifyUploadError, notifyUploadResult } from "../upload-feedback";
 
 import AnalysisFailureBlock from "./AnalysisFailureBlock";
 
-const MODAL_TITLE = "Prévia do Documento";
+const MODAL_TITLE = "Análise da IA";
 const TITLE_LABEL = "Título";
 const ANALYSIS_LABEL = "Análise da IA";
 const LOADING_LABEL = "Carregando análise...";
@@ -173,7 +173,14 @@ export default function AnalysisModal({
         }
       }}
     >
-      <DialogContent aria-describedby={undefined} closeDisabled={isRetrying}>
+      <DialogContent
+        aria-describedby={undefined}
+        closeDisabled={isRetrying}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement).focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-[length:var(--font-size-dialog-title)] font-medium leading-[var(--line-height-dialog-title)] text-text-primary">
             {MODAL_TITLE}
