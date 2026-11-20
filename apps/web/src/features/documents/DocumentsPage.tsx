@@ -1,12 +1,8 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { getErrorMessage } from "@/lib/errors";
 import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
-import { ApiError } from "@/lib/http";
 
 import AnalysisModal from "./components/AnalysisModal";
 import ConfirmDeleteDialog from "./components/ConfirmDeleteDialog";
@@ -14,11 +10,9 @@ import DocumentGrid from "./components/DocumentGrid";
 import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import SelectionBar from "./components/SelectionBar";
 import UploadModal from "./components/UploadModal";
-import {
-  DOCUMENTS_QUERY_KEY,
-  useDeleteDocument,
-  useDocuments,
-} from "./queries";
+import { notifyDeleteReport } from "./delete-feedback";
+import { useDocuments } from "./queries";
+import { useDeleteDocuments } from "./use-delete-documents";
 import { useFileDrop } from "./use-file-drop";
 import { useFilePicker } from "./use-file-picker";
 
@@ -27,11 +21,8 @@ const LOADING_LABEL = "Carregando documentos...";
 const LOAD_ERROR_MESSAGE = "Não foi possível carregar seus documentos.";
 const FILE_INPUT_LABEL = "Selecionar arquivo";
 const DOCUMENTS_AREA_LABEL = "Área de documentos";
-const DELETE_SUCCESS_MESSAGE = "Documento excluído.";
-const SINGLE_SELECTION_COUNT = 1;
-const NOT_FOUND_STATUS = 404;
-const UNAUTHORIZED_STATUS = 401;
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
+const NO_IDS: readonly string[] = [];
 
 const skeletonItems = Array.from(
   { length: LOADING_SKELETON_COUNT },
@@ -43,9 +34,8 @@ function formatDocumentCount(count: number): string {
 }
 
 export default function DocumentsPage() {
-  const queryClient = useQueryClient();
   const documents = useDocuments();
-  const deleteDocument = useDeleteDocument();
+  const { deleteDocuments, isDeleting } = useDeleteDocuments();
   const documentItems = documents.data;
   const {
     inputRef,
@@ -56,10 +46,10 @@ export default function DocumentsPage() {
     clearChosenFile,
   } = useFilePicker();
   const addButtonRef = useRef<HTMLButtonElement>(null);
-  const deletingRef = useRef(false);
 
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [idsToDelete, setIdsToDelete] = useState<readonly string[]>(NO_IDS);
 
   const { isDragOver, dropZoneProps } = useFileDrop({
     disabled:
@@ -110,61 +100,27 @@ export default function DocumentsPage() {
   }, []);
 
   function handleRequestDelete() {
-    // TODO(FE-21): exclusão de 2 ou mais documentos (laço sequencial).
-    if (selectedDocumentIds.size === SINGLE_SELECTION_COUNT) {
+    if (selectedDocumentIds.size > 0) {
+      setIdsToDelete(Array.from(selectedDocumentIds));
       setIsDeleteOpen(true);
     }
   }
 
-  function finishDeletion() {
-    toast.success(DELETE_SUCCESS_MESSAGE);
-    setSelectedIds(EMPTY_SELECTION);
-    setIsDeleteOpen(false);
-    void queryClient.invalidateQueries({
-      queryKey: DOCUMENTS_QUERY_KEY,
-      exact: true,
-    });
-  }
+  async function handleConfirmDelete() {
+    const report = await deleteDocuments(idsToDelete);
 
-  function handleDeleteError(error: unknown) {
-    if (error instanceof ApiError) {
-      if (error.status === NOT_FOUND_STATUS) {
-        finishDeletion();
-        return;
-      }
-
-      if (error.status === UNAUTHORIZED_STATUS) {
-        return;
-      }
-
-      toast.error(getErrorMessage(error.code));
-    } else {
-      toast.error(getErrorMessage("INTERNAL_ERROR"));
-    }
-
-    setIsDeleteOpen(false);
-  }
-
-  function handleConfirmDelete() {
-    const [onlyId] = Array.from(selectedDocumentIds);
-
-    if (
-      onlyId === undefined ||
-      selectedDocumentIds.size !== SINGLE_SELECTION_COUNT ||
-      deletingRef.current
-    ) {
+    if (report === null) {
       return;
     }
 
-    deletingRef.current = true;
+    setIsDeleteOpen(false);
 
-    deleteDocument.mutate(onlyId, {
-      onSuccess: finishDeletion,
-      onError: handleDeleteError,
-      onSettled: () => {
-        deletingRef.current = false;
-      },
-    });
+    if (report.sessionExpired) {
+      return;
+    }
+
+    setSelectedIds(new Set(report.failedIds));
+    notifyDeleteReport(report);
   }
 
   return (
@@ -284,9 +240,9 @@ export default function DocumentsPage() {
 
       <ConfirmDeleteDialog
         open={isDeleteOpen}
-        count={SINGLE_SELECTION_COUNT}
-        isDeleting={deleteDocument.isPending}
-        onConfirm={handleConfirmDelete}
+        count={idsToDelete.length}
+        isDeleting={isDeleting}
+        onConfirm={() => void handleConfirmDelete()}
         onOpenChange={setIsDeleteOpen}
       />
     </div>
