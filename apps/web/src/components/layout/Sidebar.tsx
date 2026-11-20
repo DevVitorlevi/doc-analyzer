@@ -58,7 +58,7 @@ export default function Sidebar({ user }: SidebarProps) {
       aria-label="Barra lateral"
       className="flex w-full shrink-0 flex-col bg-primary text-sidebar-text md:min-h-screen md:w-[var(--sidebar-width)]"
     >
-      <div className="px-6 pb-8 pt-8">
+      <div className="px-3 pb-8 pt-8">
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold leading-5">Escritório</span>
 
@@ -75,13 +75,13 @@ export default function Sidebar({ user }: SidebarProps) {
           className={({ isActive }) =>
             cn(
               "flex min-h-11 items-center gap-3 rounded-md px-3 py-2",
-              "text-sm font-medium transition-colors",
+              "text-sm font-normal transition-colors",
               "duration-[var(--interaction-transition-duration)]",
               "motion-reduce:transition-none",
               "focus-visible:outline-2 focus-visible:outline-offset-2",
               "focus-visible:outline-white",
               isActive
-                ? "bg-white/15 text-white"
+                ? "bg-white/15 text-white hover:bg-white/25"
                 : "text-sidebar-text-secondary hover:bg-white/10 hover:text-white",
             )
           }
@@ -120,7 +120,7 @@ export default function Sidebar({ user }: SidebarProps) {
           type="button"
           disabled
           className={cn(
-            "mt-4 flex min-h-10 w-full items-center gap-3 rounded-md px-3",
+            "mt-4 flex min-h-10 w-full items-center gap-3 rounded-md px-1",
             "text-sm font-medium text-sidebar-text-secondary",
             "cursor-not-allowed opacity-[var(--disabled-opacity)]",
             "focus-visible:outline-2 focus-visible:outline-offset-2",
