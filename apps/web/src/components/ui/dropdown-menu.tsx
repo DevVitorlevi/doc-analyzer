@@ -26,12 +26,12 @@ export function DropdownMenuContent({
         sideOffset={sideOffset}
         className={cn(
           [
-            "z-50 min-w-[280px] max-w-[calc(100vw-2rem)]",
-            "rounded-[var(--radius-dropdown)]",
-            "bg-[var(--color-surface-white)]",
+            "z-50 min-w-70 max-w-[calc(100vw-2rem)]",
+            "rounded-(--radius-dropdown)",
+            "bg-surface-white",
             "p-1",
-            "text-[var(--color-text-primary)]",
-            "shadow-[var(--shadow-overlay-panel)]",
+            "text-text-primary",
+            "shadow-(--shadow-overlay-panel)",
             "outline-none",
             "origin-(--radix-dropdown-menu-content-transform-origin)",
             "motion-safe:data-[state=open]:animate-menu-in",
@@ -62,17 +62,17 @@ export function DropdownMenuItem({
         [
           "relative flex min-h-10 w-full cursor-default",
           "select-none items-center gap-2",
-          "rounded-[var(--radius-menu-item)]",
+          "rounded-(--radius-menu-item)",
           "px-3 py-2 text-sm outline-none",
-          "transition-colors duration-[var(--interaction-transition-duration)]",
-          "focus:bg-[var(--color-control-secondary)]",
-          "data-[disabled]:pointer-events-none",
-          "data-[disabled]:opacity-[var(--disabled-opacity)]",
+          "transition-colors duration-(--interaction-transition-duration)",
+          "focus:bg-control-secondary",
+          "data-disabled:pointer-events-none",
+          "data-disabled:opacity-(--disabled-opacity)",
           "motion-reduce:transition-none",
         ],
         variant === "destructive"
-          ? "text-[var(--color-danger-action)]"
-          : "text-[var(--color-text-primary)]",
+          ? "text-(--color-danger-action)"
+          : "text-text-primary",
         className,
       )}
       {...props}
@@ -96,12 +96,12 @@ export function DropdownMenuCheckboxItem({
       className={cn(
         [
           "relative flex min-h-10 cursor-default select-none",
-          "items-center gap-2 rounded-[var(--radius-menu-item)]",
+          "items-center gap-2 rounded-(--radius-menu-item)",
           "py-2 pl-8 pr-3 text-sm outline-none",
-          "transition-colors duration-[var(--interaction-transition-duration)]",
-          "focus:bg-[var(--color-control-secondary)]",
-          "data-[disabled]:pointer-events-none",
-          "data-[disabled]:opacity-[var(--disabled-opacity)]",
+          "transition-colors duration-(--interaction-transition-duration)",
+          "focus:bg-control-secondary",
+          "data-disabled:pointer-events-none",
+          "data-disabled:opacity-(--disabled-opacity)",
           "motion-reduce:transition-none",
         ],
         className,
@@ -132,11 +132,11 @@ export function DropdownMenuRadioItem({
       className={cn(
         [
           "relative flex min-h-10 cursor-default select-none",
-          "items-center gap-2 rounded-[var(--radius-menu-item)]",
+          "items-center gap-2 rounded-(--radius-menu-item)",
           "py-2 pl-8 pr-3 text-sm outline-none",
-          "transition-colors duration-[var(--interaction-transition-duration)]",
+          "transition-colors duration-(--interaction-transition-duration)",
           "focus:bg-control-secondary",
-          "data-[disabled]:pointer-events-none",
+          "data-disabled:pointer-events-none",
           "data-disabled:opacity-(--disabled-opacity)",
           "motion-reduce:transition-none",
         ],

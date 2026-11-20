@@ -18,8 +18,8 @@ export function AlertDialogOverlay({
   return (
     <AlertDialogPrimitive.Overlay
       className={cn(
-        "fixed inset-0 z-[var(--z-index-modal-scrim)]",
-        "bg-[var(--color-modal-scrim)]",
+        "fixed inset-0 z-(--z-index-modal-scrim)",
+        "bg-(--color-modal-scrim)",
         className,
       )}
       {...props}
@@ -43,15 +43,15 @@ export function AlertDialogContent({
         className={cn(
           [
             "fixed left-1/2 top-1/2",
-            "z-[var(--z-index-modal)]",
-            "w-[calc(100%-2rem)] max-w-[480px]",
+            "z-(--z-index-modal)",
+            "w-[calc(100%-2rem)] max-w-120",
             "max-h-[calc(100dvh-2rem)] overflow-y-auto",
             "-translate-x-1/2 -translate-y-1/2",
-            "rounded-[var(--radius-dialog)]",
-            "border border-[var(--color-border)]",
-            "bg-[var(--color-surface)]",
-            "p-6 text-[var(--color-text-primary)]",
-            "shadow-[var(--shadow-overlay-panel)]",
+            "rounded-(--radius-dialog)",
+            "border border-border",
+            "bg-surface",
+            "p-6 text-text-primary",
+            "shadow-(--shadow-overlay-panel)",
             "outline-none",
           ],
           className,
@@ -108,17 +108,17 @@ export function AlertDialogAction({
     <AlertDialogPrimitive.Action
       className={cn(
         [
-          "inline-flex min-h-[var(--button-min-height)]",
-          "items-center justify-center rounded-[var(--radius-button)]",
-          "bg-[var(--color-primary-action)]",
-          "px-[var(--button-padding-x)]",
+          "inline-flex min-h-(--button-min-height)",
+          "items-center justify-center rounded-(--radius-button)",
+          "bg-(--color-primary-action)",
+          "px-(--button-padding-x)",
           "text-sm font-semibold text-white",
-          "transition-colors duration-[var(--interaction-transition-duration)]",
-          "hover:bg-[var(--color-primary-hover)]",
-          "active:bg-[var(--color-primary-active)]",
+          "transition-colors duration-(--interaction-transition-duration)",
+          "hover:bg-(--color-primary-hover)",
+          "active:bg-(--color-primary-active)",
           "focus-visible:outline-2 focus-visible:outline-offset-2",
-          "focus-visible:outline-[var(--color-primary-action)]",
-          "disabled:pointer-events-none disabled:opacity-[var(--disabled-opacity)]",
+          "focus-visible:outline-(--color-primary-action)",
+          "disabled:pointer-events-none disabled:opacity-(--disabled-opacity)",
           "motion-reduce:transition-none",
         ],
         className,
@@ -140,16 +140,16 @@ export function AlertDialogCancel({
     <AlertDialogPrimitive.Cancel
       className={cn(
         [
-          "inline-flex min-h-[var(--button-min-height)]",
-          "items-center justify-center rounded-[var(--radius-button)]",
-          "bg-[var(--color-control-secondary)]",
-          "px-[var(--button-padding-x)]",
-          "text-sm font-semibold text-[var(--color-text-primary)]",
-          "transition-colors duration-[var(--interaction-transition-duration)]",
-          "hover:bg-[var(--color-control-hover)]",
-          "active:bg-[var(--color-control-active)]",
+          "inline-flex min-h-(--button-min-height)",
+          "items-center justify-center rounded-(--radius-button)",
+          "bg-control-secondary",
+          "px-(--button-padding-x)",
+          "text-sm font-semibold text-text-primary",
+          "transition-colors duration-(--interaction-transition-duration)",
+          "hover:bg-(--color-control-hover)",
+          "active:bg-(--color-control-active)",
           "focus-visible:outline-2 focus-visible:outline-offset-2",
-          "focus-visible:outline-[var(--color-primary-action)]",
+          "focus-visible:outline-(--color-primary-action)",
           "motion-reduce:transition-none",
         ],
         className,

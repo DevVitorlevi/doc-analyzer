@@ -68,7 +68,7 @@ export default function ConfirmDeleteDialog({
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-[length:var(--font-size-dialog-title)] font-medium leading-[var(--line-height-dialog-title)] text-text-primary">
+          <AlertDialogTitle className="text-(length:--font-size-dialog-title) font-medium leading-(--line-height-dialog-title) text-text-primary">
             {formatTitle(count)}
           </AlertDialogTitle>
           <AlertDialogDescription className="text-md text-text-secondary">

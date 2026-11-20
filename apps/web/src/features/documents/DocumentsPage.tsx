@@ -124,8 +124,8 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-[var(--space-24)]">
-      <h1 className="text-[length:var(--font-size-page-title)] font-semibold leading-[var(--line-height-page-title)] text-text-primary">
+    <div className="flex flex-col gap-(--space-24)">
+      <h1 className="text-(length:--font-size-page-title) font-semibold leading-(--line-height-page-title) text-text-primary">
         Documentos
       </h1>
 
@@ -136,9 +136,9 @@ export default function DocumentsPage() {
         data-drag-active={isDragOver}
         {...dropZoneProps}
         className={[
-          "flex min-h-[60vh] flex-col gap-[var(--space-12)] p-[var(--space-16)]",
-          "md:h-[85vh] lg:p-[var(--space-24)]",
-          "rounded-[var(--radius-container)] border",
+          "flex min-h-[60vh] flex-col gap-(--space-12) p-(--space-16)",
+          "md:h-[85vh] lg:p-(--space-24)",
+          "rounded-(--radius-container) border",
           "motion-safe:transition-colors",
           isDragOver
             ? "border-primary bg-primary/5"
@@ -148,7 +148,7 @@ export default function DocumentsPage() {
         {documents.isSuccess && (
           <div className="flex min-h-10 flex-wrap items-center justify-between gap-(--space-8)">
             {documents.data.length > 0 && (
-              <p className="text-[length:var(--font-size-selection-counter)] font-medium leading-[var(--line-height-selection-counter)] tracking-[var(--letter-spacing-selection-counter)] text-text-primary">
+              <p className="text-(length:--font-size-selection-counter) font-medium leading-(--line-height-selection-counter) tracking-(--letter-spacing-selection-counter) text-text-primary">
                 {formatDocumentCount(documents.data.length)}
               </p>
             )}
@@ -183,7 +183,7 @@ export default function DocumentsPage() {
         )}
 
         {documents.isPending && (
-          <div role="status" className="flex flex-wrap gap-[var(--space-8)]">
+          <div role="status" className="flex flex-wrap gap-(--space-8)">
             <span className="sr-only">{LOADING_LABEL}</span>
 
             {skeletonItems.map((item) => (
@@ -191,8 +191,8 @@ export default function DocumentsPage() {
                 key={item}
                 aria-hidden="true"
                 className={[
-                  "h-[var(--document-card-height)] w-[var(--document-card-width)]",
-                  "rounded-[var(--radius-card)] bg-document-card",
+                  "h-(--document-card-height) w-(--document-card-width)",
+                  "rounded-(--radius-card) bg-document-card",
                   "animate-pulse motion-reduce:animate-none",
                 ].join(" ")}
               />
@@ -205,7 +205,7 @@ export default function DocumentsPage() {
             role="alert"
             className="flex flex-col items-center gap-4 px-6 py-16 text-center"
           >
-            <p className="text-[length:var(--font-size-empty-description)] leading-[var(--line-height-empty-description)] text-text-primary">
+            <p className="text-(length:--font-size-empty-description) leading-(--line-height-empty-description) text-text-primary">
               {LOAD_ERROR_MESSAGE}
             </p>
 

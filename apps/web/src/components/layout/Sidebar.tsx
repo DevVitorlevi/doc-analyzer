@@ -67,7 +67,7 @@ export default function Sidebar({
       className={cn(
         "grid w-full shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center",
         "gap-x-3 bg-primary px-4 py-3 text-sidebar-text",
-        "md:flex md:min-h-screen md:w-[var(--sidebar-width)] md:flex-col",
+        "md:flex md:min-h-screen md:w-(--sidebar-width) md:flex-col",
         "md:items-stretch md:gap-x-0 md:p-0",
       )}
     >
@@ -94,7 +94,7 @@ export default function Sidebar({
             cn(
               "flex min-h-11 items-center gap-3 rounded-md px-3 py-2",
               "text-sm font-normal transition-colors",
-              "duration-[var(--interaction-transition-duration)]",
+              "duration-(--interaction-transition-duration)",
               "motion-reduce:transition-none",
               "focus-visible:outline-2 focus-visible:outline-offset-2",
               "focus-visible:outline-white",
@@ -125,14 +125,14 @@ export default function Sidebar({
           <div className="min-w-0 flex-1">
             <p
               title={user.name}
-              className="truncate text-[length:var(--font-size-user-name)] font-semibold leading-5 text-sidebar-text"
+              className="truncate text-(length:--font-size-user-name) font-semibold leading-5 text-sidebar-text"
             >
               {user.name}
             </p>
 
             <p
               title={user.email}
-              className="truncate text-[length:var(--font-size-user-email)] leading-4 text-sidebar-text-secondary"
+              className="truncate text-(length:--font-size-user-email) leading-4 text-sidebar-text-secondary"
             >
               {user.email}
             </p>
@@ -148,12 +148,12 @@ export default function Sidebar({
             "col-start-2 row-start-1 flex min-h-10 items-center gap-2 rounded-md px-3",
             "md:mt-4 md:w-full md:gap-3 md:px-2",
             "text-sm font-medium text-sidebar-text-secondary",
-            "transition-colors duration-[var(--interaction-transition-duration)]",
+            "transition-colors duration-(--interaction-transition-duration)",
             "motion-reduce:transition-none",
             "hover:bg-white/10 hover:text-white active:bg-white/20",
             "focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-white",
-            "disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)]",
+            "disabled:cursor-not-allowed disabled:opacity-(--disabled-opacity)",
             "disabled:hover:bg-transparent disabled:hover:text-sidebar-text-secondary cursor-pointer",
           )}
         >
