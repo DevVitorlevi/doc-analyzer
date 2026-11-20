@@ -153,4 +153,71 @@ describe("DocumentsPage", () => {
     expect(await screen.findByText("2 Documentos")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
+
+  it("seleciona e desseleciona documentos e atualiza o chip de seleção", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(`${API_URL}/documents`, () =>
+        HttpResponse.json([documentListItem, secondDocumentListItem]),
+      ),
+    );
+
+    renderWithProviders(<DocumentsPage />);
+
+    expect(await screen.findByText("2 Documentos")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /selecionado/ }),
+    ).not.toBeInTheDocument();
+
+    const contrato = screen.getByRole("checkbox", { name: "Contrato" });
+    const parecer = screen.getByRole("checkbox", { name: "Parecer" });
+
+    await user.click(contrato);
+
+    expect(contrato).toHaveAttribute("aria-checked", "true");
+    expect(parecer).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("button", { name: "1 documento selecionado" }),
+    ).toBeInTheDocument();
+
+    await user.click(parecer);
+
+    expect(
+      screen.getByRole("button", { name: "2 documentos selecionados" }),
+    ).toBeInTheDocument();
+
+    await user.click(contrato);
+    await user.click(parecer);
+
+    expect(
+      screen.queryByRole("button", { name: /selecionado/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("oferece visualizar análise só com um documento selecionado", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(`${API_URL}/documents`, () =>
+        HttpResponse.json([documentListItem, secondDocumentListItem]),
+      ),
+    );
+
+    renderWithProviders(<DocumentsPage />);
+
+    await user.click(await screen.findByRole("checkbox", { name: "Contrato" }));
+    await user.click(screen.getByRole("checkbox", { name: "Parecer" }));
+
+    await user.click(
+      screen.getByRole("button", { name: "2 documentos selecionados" }),
+    );
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Excluir documentos" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Visualizar análise" }),
+    ).not.toBeInTheDocument();
+  });
 });
