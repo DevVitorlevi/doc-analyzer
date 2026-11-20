@@ -75,3 +75,7 @@ export function validateFile(file: FileLike): FileValidationError | null {
 
   return null;
 }
+
+export const FILE_INPUT_ACCEPT = Array.from(ACCEPTED_FILE_TYPES.values())
+  .map((fileType) => fileType.extension)
+  .join(",");
