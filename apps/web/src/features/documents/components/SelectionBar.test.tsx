@@ -7,7 +7,11 @@ import SelectionBar from "./SelectionBar";
 describe("SelectionBar", () => {
   it("não renderiza nada sem documentos selecionados", () => {
     const { container } = render(
-      <SelectionBar selectedCount={0} onViewAnalysis={vi.fn()} />,
+      <SelectionBar
+        selectedCount={0}
+        onViewAnalysis={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -15,14 +19,24 @@ describe("SelectionBar", () => {
 
   it("pluraliza o texto do chip", () => {
     const { rerender } = render(
-      <SelectionBar selectedCount={1} onViewAnalysis={vi.fn()} />,
+      <SelectionBar
+        selectedCount={1}
+        onViewAnalysis={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     );
 
     expect(
       screen.getByRole("button", { name: "1 documento selecionado" }),
     ).toBeInTheDocument();
 
-    rerender(<SelectionBar selectedCount={2} onViewAnalysis={vi.fn()} />);
+    rerender(
+      <SelectionBar
+        selectedCount={2}
+        onViewAnalysis={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
     expect(
       screen.getByRole("button", { name: "2 documentos selecionados" }),
@@ -32,7 +46,13 @@ describe("SelectionBar", () => {
   it("com 1 selecionado, o menu oferece excluir e visualizar análise", async () => {
     const user = userEvent.setup();
 
-    render(<SelectionBar selectedCount={1} onViewAnalysis={vi.fn()} />);
+    render(
+      <SelectionBar
+        selectedCount={1}
+        onViewAnalysis={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
     await user.tab();
     await user.keyboard("{Enter}");
@@ -48,7 +68,13 @@ describe("SelectionBar", () => {
   it("com 2 ou mais selecionados, o menu oferece só excluir", async () => {
     const user = userEvent.setup();
 
-    render(<SelectionBar selectedCount={3} onViewAnalysis={vi.fn()} />);
+    render(
+      <SelectionBar
+        selectedCount={3}
+        onViewAnalysis={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
     await user.tab();
     await user.keyboard("{Enter}");
@@ -64,8 +90,15 @@ describe("SelectionBar", () => {
   it("chama onViewAnalysis ao escolher Visualizar análise", async () => {
     const user = userEvent.setup();
     const onViewAnalysis = vi.fn();
+    const onDelete = vi.fn();
 
-    render(<SelectionBar selectedCount={1} onViewAnalysis={onViewAnalysis} />);
+    render(
+      <SelectionBar
+        selectedCount={1}
+        onViewAnalysis={onViewAnalysis}
+        onDelete={onDelete}
+      />,
+    );
 
     await user.tab();
     await user.keyboard("{Enter}");
@@ -74,5 +107,29 @@ describe("SelectionBar", () => {
     );
 
     expect(onViewAnalysis).toHaveBeenCalledTimes(1);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("chama onDelete ao escolher Excluir documentos", async () => {
+    const user = userEvent.setup();
+    const onViewAnalysis = vi.fn();
+    const onDelete = vi.fn();
+
+    render(
+      <SelectionBar
+        selectedCount={1}
+        onViewAnalysis={onViewAnalysis}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.tab();
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Excluir documentos" }),
+    );
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onViewAnalysis).not.toHaveBeenCalled();
   });
 });
