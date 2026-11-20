@@ -1,42 +1,32 @@
 import Fastify, { type FastifyInstance } from "fastify";
-
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-
 import { fileURLToPath } from "node:url";
-
 import type { Env } from "@/config/env";
-
 import { healthRoutes } from "@/modules/health/health-routes";
 import { authRoutes } from "@/modules/auth/auth-routes";
-
 import {
   createGoogleOAuthProvider,
   type GoogleOAuthProvider,
 } from "@/modules/auth/google-oauth";
-
 import { documentsRoutes } from "@/modules/documents/documents-routes";
 import { createDocumentService } from "@/modules/documents/documents-service";
 import { createDocumentDeletionWorker } from "@/modules/documents/document-deletion-worker";
-
+import { createDocumentAnalysisWorker } from "@/modules/documents/document-analysis-worker";
 import {
   createOpenAIAnalyzer,
   type DocumentAnalyzer,
 } from "@/integrations/openai/openai-analyzer";
-
 import {
   createS3Storage,
   type StorageProvider,
 } from "@/integrations/storage/s3-storage";
-
 import { createDocumentRepository } from "@/repositories/document-repository";
-
 import { registerErrorHandler } from "@/shared/errors/error-handler";
 import { createPrismaClient } from "@/shared/database/prisma";
-
 import { buildLoggerOptions } from "./shared/logger/logger";
 
 export interface BuildAppOptions {
@@ -56,26 +46,25 @@ export async function buildApp(
   registerErrorHandler(app);
 
   const prisma = createPrismaClient(env.DATABASE_URL);
-
   app.decorate("prisma", prisma);
   app.decorateRequest("currentUser", null);
 
   let stopDocumentDeletionWorker: (() => Promise<void>) | undefined;
+  let stopDocumentAnalysisWorker: (() => Promise<void>) | undefined;
 
   app.addHook("onClose", async () => {
+    await stopDocumentAnalysisWorker?.();
     await stopDocumentDeletionWorker?.();
     await prisma.$disconnect();
   });
 
   const googleOAuthProvider =
     options.googleOAuthProvider ?? createGoogleOAuthProvider(env);
-
   app.decorate("googleOAuthProvider", googleOAuthProvider);
 
   const maxFileSizeBytes = Math.floor(env.MAX_FILE_SIZE_MB * 1024 * 1024);
 
   await app.register(cookie);
-
   await app.register(cors, {
     origin: env.WEB_URL,
     credentials: true,
@@ -113,11 +102,12 @@ export async function buildApp(
 
   const storage = options.storage ?? createS3Storage(env);
   const documents = createDocumentRepository(prisma);
+  const analyzer = options.documentAnalyzer ?? createOpenAIAnalyzer(env);
 
   const documentService = createDocumentService({
     documents,
     storage,
-    analyzer: options.documentAnalyzer ?? createOpenAIAnalyzer(env),
+    analyzer,
     logger: app.log,
     maxTextChars: env.MAX_TEXT_CHARS,
     maxFileSizeBytes,
@@ -135,8 +125,18 @@ export async function buildApp(
     });
 
     deletionWorker.start();
-
     stopDocumentDeletionWorker = () => deletionWorker.stop();
+
+    const analysisWorker = createDocumentAnalysisWorker({
+      documents,
+      storage,
+      analyzer,
+      logger: app.log,
+      maxTextChars: env.MAX_TEXT_CHARS,
+    });
+
+    analysisWorker.start();
+    stopDocumentAnalysisWorker = () => analysisWorker.stop();
   }
 
   return app;
