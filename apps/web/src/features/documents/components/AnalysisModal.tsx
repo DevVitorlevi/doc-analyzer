@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -12,14 +12,19 @@ import { getErrorMessage } from "@/lib/errors";
 import { formatSize, mimeToExt, mimeToLabel } from "@/lib/format";
 import { ApiError } from "@/lib/http";
 
-import { DOCUMENTS_QUERY_KEY, useDocument } from "../queries";
+import { DOCUMENTS_QUERY_KEY, useDocument, useRetryDocument } from "../queries";
+import { notifyUploadError, notifyUploadResult } from "../upload-feedback";
+
+import AnalysisFailureBlock from "./AnalysisFailureBlock";
 
 const MODAL_TITLE = "Prévia do Documento";
 const TITLE_LABEL = "Título";
 const ANALYSIS_LABEL = "Análise da IA";
 const LOADING_LABEL = "Carregando análise...";
+const PROCESSING_LABEL = "Processando";
 const METADATA_SEPARATOR = " · ";
 const NOT_FOUND_STATUS = 404;
+const CONFLICT_STATUS = 409;
 
 const LABEL_CLASS = "text-md px-3 font-medium text-text-primary";
 
@@ -96,6 +101,7 @@ export default function AnalysisModal({
   const titleId = useId();
   const analysisLabelId = useId();
   const queryClient = useQueryClient();
+  const retryingRef = useRef(false);
 
   const [displayedId, setDisplayedId] = useState<string | null>(documentId);
 
@@ -104,6 +110,9 @@ export default function AnalysisModal({
   }
 
   const query = useDocument(displayedId);
+  const retry = useRetryDocument();
+  const isRetrying = retry.isPending;
+
   const notFound =
     query.error instanceof ApiError && query.error.status === NOT_FOUND_STATUS;
 
@@ -118,16 +127,53 @@ export default function AnalysisModal({
       ? getErrorMessage(query.error.code)
       : getErrorMessage("INTERNAL_ERROR");
 
+  function handleRetryError(error: unknown) {
+    notifyUploadError(error);
+
+    if (!(error instanceof ApiError)) {
+      return;
+    }
+
+    if (error.status === NOT_FOUND_STATUS) {
+      void queryClient.invalidateQueries({
+        queryKey: DOCUMENTS_QUERY_KEY,
+        exact: true,
+      });
+      onClose();
+      return;
+    }
+
+    if (error.status === CONFLICT_STATUS) {
+      void queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+    }
+  }
+
+  function handleRetry() {
+    if (displayedId === null || retryingRef.current) {
+      return;
+    }
+
+    retryingRef.current = true;
+
+    retry.mutate(displayedId, {
+      onSuccess: notifyUploadResult,
+      onError: handleRetryError,
+      onSettled: () => {
+        retryingRef.current = false;
+      },
+    });
+  }
+
   return (
     <Dialog
       open={documentId !== null}
       onOpenChange={(open) => {
-        if (!open) {
+        if (!open && !isRetrying) {
           onClose();
         }
       }}
     >
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent aria-describedby={undefined} closeDisabled={isRetrying}>
         <DialogHeader>
           <DialogTitle className="text-[length:var(--font-size-dialog-title)] font-medium leading-[var(--line-height-dialog-title)] text-text-primary">
             {MODAL_TITLE}
@@ -165,32 +211,65 @@ export default function AnalysisModal({
                 />
               </div>
 
-              {/* TODO(FE-19): FAILED mostra erro + "Tentar novamente"; PROCESSING mostra texto informativo. */}
-              {query.data.status === "COMPLETED" && (
-                <div className="flex flex-col gap-1">
-                  <p id={analysisLabelId} className={LABEL_CLASS}>
-                    {ANALYSIS_LABEL}
-                  </p>
-                  <div
-                    role="region"
-                    aria-labelledby={analysisLabelId}
-                    tabIndex={0}
-                    className={[
-                      "h-(--analysis-field-height) w-full overflow-y-auto",
-                      "rounded-(--radius-input) bg-control-secondary px-4 py-2",
-                      "whitespace-pre-wrap wrap-break-word text-md text-text-primary",
-                      "focus-visible:outline-2 focus-visible:outline-offset-2",
-                      "focus-visible:outline-(--color-primary-action)",
-                    ].join(" ")}
-                  >
-                    {query.data.analysis ?? ""}
-                  </div>
-                </div>
-              )}
+              {renderStatusContent()}
             </div>
           </div>
         )}
       </DialogContent>
     </Dialog>
   );
+
+  function renderStatusContent() {
+    if (!query.isSuccess) {
+      return null;
+    }
+
+    const { status, analysis, errorCode } = query.data;
+
+    switch (status) {
+      case "COMPLETED":
+        return (
+          <div className="flex flex-col gap-1">
+            <p id={analysisLabelId} className={LABEL_CLASS}>
+              {ANALYSIS_LABEL}
+            </p>
+            <div
+              role="region"
+              aria-labelledby={analysisLabelId}
+              tabIndex={0}
+              className={[
+                "h-(--analysis-field-height) w-full overflow-y-auto",
+                "rounded-(--radius-input) bg-control-secondary px-4 py-2",
+                "whitespace-pre-wrap wrap-break-word text-md text-text-primary",
+                "focus-visible:outline-2 focus-visible:outline-offset-2",
+                "focus-visible:outline-(--color-primary-action)",
+              ].join(" ")}
+            >
+              {analysis ?? ""}
+            </div>
+          </div>
+        );
+      case "FAILED":
+        return (
+          <AnalysisFailureBlock
+            errorCode={errorCode}
+            isRetrying={isRetrying}
+            onRetry={handleRetry}
+          />
+        );
+      case "PROCESSING":
+        return (
+          <p
+            role="status"
+            className="rounded-(--radius-input) bg-control-secondary px-4 py-3 text-md text-text-secondary"
+          >
+            {PROCESSING_LABEL}
+          </p>
+        );
+      default: {
+        const unreachable: never = status;
+        return unreachable;
+      }
+    }
+  }
 }
