@@ -18,9 +18,13 @@ function formatSelectionLabel(count: number): string {
 
 interface SelectionBarProps {
   selectedCount: number;
+  onViewAnalysis: () => void;
 }
 
-export default function SelectionBar({ selectedCount }: SelectionBarProps) {
+export default function SelectionBar({
+  selectedCount,
+  onViewAnalysis,
+}: SelectionBarProps) {
   if (selectedCount < 1) {
     return null;
   }
@@ -46,7 +50,7 @@ export default function SelectionBar({ selectedCount }: SelectionBarProps) {
         </DropdownMenuItem>
 
         {canViewAnalysis && (
-          <DropdownMenuItem className="text-md">
+          <DropdownMenuItem className="text-md" onSelect={onViewAnalysis}>
             <Eye
               aria-hidden="true"
               className="size-6 shrink-0 text-success"
