@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { render, screen, within } from "@/test/test-utils";
+import { render, screen, userEvent, within } from "@/test/test-utils";
 
 import type { DocumentListItem } from "../types";
 
@@ -21,27 +21,42 @@ function makeItem(overrides: Partial<DocumentListItem>): DocumentListItem {
   };
 }
 
+function renderGrid(
+  documents: DocumentListItem[],
+  options: {
+    selectedIds?: ReadonlySet<string>;
+    onToggle?: (id: string) => void;
+  } = {},
+) {
+  const { selectedIds = new Set<string>(), onToggle = () => undefined } =
+    options;
+
+  return render(
+    <DocumentGrid
+      documents={documents}
+      selectedIds={selectedIds}
+      onToggle={onToggle}
+    />,
+  );
+}
+
 describe("DocumentGrid", () => {
   it("exibe título, data e tamanho · extensão para PDF, DOCX e TXT", () => {
-    render(
-      <DocumentGrid
-        documents={[
-          makeItem({ id: "1", title: "Contrato" }),
-          makeItem({
-            id: "2",
-            title: "Parecer",
-            mimeType: DOCX_MIME,
-            sizeBytes: 2_936_012,
-          }),
-          makeItem({
-            id: "3",
-            title: "Notas",
-            mimeType: "text/plain",
-            sizeBytes: 1024,
-          }),
-        ]}
-      />,
-    );
+    renderGrid([
+      makeItem({ id: "1", title: "Contrato" }),
+      makeItem({
+        id: "2",
+        title: "Parecer",
+        mimeType: DOCX_MIME,
+        sizeBytes: 2_936_012,
+      }),
+      makeItem({
+        id: "3",
+        title: "Notas",
+        mimeType: "text/plain",
+        sizeBytes: 1024,
+      }),
+    ]);
 
     const [pdf, docx, txt] = screen.getAllByRole("listitem");
 
@@ -58,15 +73,11 @@ describe("DocumentGrid", () => {
   });
 
   it("mantém a ordem devolvida pela API", () => {
-    render(
-      <DocumentGrid
-        documents={[
-          makeItem({ id: "1", title: "Primeiro" }),
-          makeItem({ id: "2", title: "Segundo" }),
-          makeItem({ id: "3", title: "Terceiro" }),
-        ]}
-      />,
-    );
+    renderGrid([
+      makeItem({ id: "1", title: "Primeiro" }),
+      makeItem({ id: "2", title: "Segundo" }),
+      makeItem({ id: "3", title: "Terceiro" }),
+    ]);
 
     const items = screen.getAllByRole("listitem");
 
@@ -76,15 +87,11 @@ describe("DocumentGrid", () => {
   });
 
   it("exibe selo apenas para PROCESSING e FAILED", () => {
-    render(
-      <DocumentGrid
-        documents={[
-          makeItem({ id: "1", title: "Pronto", status: "COMPLETED" }),
-          makeItem({ id: "2", title: "Em andamento", status: "PROCESSING" }),
-          makeItem({ id: "3", title: "Com erro", status: "FAILED" }),
-        ]}
-      />,
-    );
+    renderGrid([
+      makeItem({ id: "1", title: "Pronto", status: "COMPLETED" }),
+      makeItem({ id: "2", title: "Em andamento", status: "PROCESSING" }),
+      makeItem({ id: "3", title: "Com erro", status: "FAILED" }),
+    ]);
 
     const [completed, processing, failed] = screen.getAllByRole("listitem");
 
@@ -99,14 +106,10 @@ describe("DocumentGrid", () => {
   it("expõe o título completo para títulos longos e não quebra com tipo desconhecido", () => {
     const longTitle = "Contrato de prestação de serviços ".repeat(6).trim();
 
-    render(
-      <DocumentGrid
-        documents={[
-          makeItem({ id: "1", title: longTitle }),
-          makeItem({ id: "2", title: "Imagem", mimeType: "image/png" }),
-        ]}
-      />,
-    );
+    renderGrid([
+      makeItem({ id: "1", title: longTitle }),
+      makeItem({ id: "2", title: "Imagem", mimeType: "image/png" }),
+    ]);
 
     expect(screen.getByText(longTitle)).toHaveAttribute("title", longTitle);
 
@@ -114,5 +117,53 @@ describe("DocumentGrid", () => {
 
     expect(unknown).toHaveTextContent("34 KB");
     expect(unknown).not.toHaveTextContent("·");
+  });
+
+  it("expõe cada card como checkbox com o título como nome e o estado de seleção", () => {
+    renderGrid(
+      [
+        makeItem({ id: "1", title: "Contrato" }),
+        makeItem({ id: "2", title: "Parecer" }),
+      ],
+      { selectedIds: new Set(["2"]) },
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Contrato" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.getByRole("checkbox", { name: "Parecer" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("alterna a seleção por clique", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+
+    renderGrid([makeItem({ id: "1", title: "Contrato" })], { onToggle });
+
+    await user.click(screen.getByRole("checkbox", { name: "Contrato" }));
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledWith("1");
+  });
+
+  it("alterna a seleção por Enter e Espaço", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+
+    renderGrid([makeItem({ id: "1", title: "Contrato" })], { onToggle });
+
+    await user.tab();
+    expect(screen.getByRole("checkbox", { name: "Contrato" })).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+
+    expect(onToggle).toHaveBeenCalledTimes(2);
+    expect(onToggle).toHaveBeenNthCalledWith(1, "1");
+    expect(onToggle).toHaveBeenNthCalledWith(2, "1");
   });
 });
