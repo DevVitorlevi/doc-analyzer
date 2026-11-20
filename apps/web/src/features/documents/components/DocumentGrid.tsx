@@ -6,9 +6,15 @@ const GRID_LABEL = "Lista de documentos";
 
 interface DocumentGridProps {
   documents: DocumentListItem[];
+  selectedIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
 }
 
-export default function DocumentGrid({ documents }: DocumentGridProps) {
+export default function DocumentGrid({
+  documents,
+  selectedIds,
+  onToggle,
+}: DocumentGridProps) {
   return (
     <ul
       aria-label={GRID_LABEL}
@@ -18,7 +24,12 @@ export default function DocumentGrid({ documents }: DocumentGridProps) {
       ].join(" ")}
     >
       {documents.map((item) => (
-        <DocumentCard key={item.id} item={item} />
+        <DocumentCard
+          key={item.id}
+          item={item}
+          selected={selectedIds.has(item.id)}
+          onToggle={onToggle}
+        />
       ))}
     </ul>
   );
