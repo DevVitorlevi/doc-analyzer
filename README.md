@@ -1,3 +1,4 @@
+
 # Jus Digital Document Analyzer
 
 Aplicativo web full-stack para autenticação com Google OAuth 2.0, envio de arquivos (`PDF`, `DOCX` e `TXT`), extração de texto, análise com Inteligência Artificial (`gpt-4o-mini`) e gerenciamento de documentos com armazenamento compatível com S3 (Backblaze B2).
@@ -6,21 +7,23 @@ Aplicativo web full-stack para autenticação com Google OAuth 2.0, envio de arq
 
 ## Sumário
 
-1. [Visão Geral e Arquitetura](#visão-geral-e-arquitetura)
-2. [Frontend (`apps/web`)](#frontend-appsweb)
-3. [Backend (`apps/api`)](#backend-appsapi)
-4. [Banco de Dados e Persistência](#banco-de-dados-e-persistência)
-5. [Autenticação Google OAuth 2.0](#autenticação-google-oauth-20)
-6. [Armazenamento de Arquivos: Backblaze B2 (S3-Compatible)](#armazenamento-de-arquivos-backblaze-b2-s3-compatible)
-7. [Configuração Equivalente na AWS S3](#configuração-equivalente-na-aws-s3)
-8. [API e Principais Fluxos](#api-e-principais-fluxos)
-9. [Instalação, Configuração e Execução Local](#instalação-configuração-e-execução-local)
-10. [Variáveis de Ambiente](#variáveis-de-ambiente)
-11. [Testes Automatizados (Unitários, Componentes, Integração e E2E)](#testes-automatizados-unitários-componentes-integração-e-e2e)
-12. [Deploy em Produção (Vercel + Railway)](#deploy-em-produção-vercel--railway)
-13. [Decisões Técnicas e Limitações Conhecidas](#decisões-técnicas-e-limitações-conhecidas)
+1. [Visão Geral e Arquitetura](#visao-geral)
+2. [Frontend (`apps/web`)](#frontend)
+3. [Backend (`apps/api`)](#backend)
+4. [Banco de Dados e Persistência](#banco-de-dados)
+5. [Autenticação Google OAuth 2.0](#autenticacao)
+6. [Armazenamento de Arquivos: Backblaze B2](#armazenamento)
+7. [Configuração Equivalente na AWS S3](#aws-s3)
+8. [API e Principais Fluxos](#api)
+9. [Instalação, Configuração e Execução Local](#instalacao)
+10. [Variáveis de Ambiente](#variaveis)
+11. [Testes Automatizados](#testes)
+12. [Deploy em Produção (Vercel + Railway)](#deploy)
+13. [Decisões Técnicas e Limitações Conhecidas](#decisoes)
 
 ---
+
+<a id="visao-geral"></a>
 
 ## 1. Visão Geral e Arquitetura
 
@@ -37,11 +40,11 @@ O **Jus Digital Document Analyzer** centraliza o envio e a análise de documento
 
 ```mermaid
 flowchart LR
-    U[Usuário / Navegador] --> W[Frontend apps/web\nVercel]
-    W -->|Cookie HTTP-only\nvia same-origin rewrite| A[Backend apps/api\nRailway]
-    A <--> DB[(PostgreSQL\nPrisma ORM)]
-    A <--> B2[(Backblaze B2\nBucket Privado S3)]
-    A <--> OAI[OpenAI API\ngpt-4o-mini]
+    U[Usuário / Navegador] --> W[Frontend apps/web<br/>Vercel]
+    W -->|Cookie HTTP-only<br/>via same-origin rewrite| A[Backend apps/api<br/>Railway]
+    A <--> DB[(PostgreSQL<br/>Prisma ORM)]
+    A <--> B2[(Backblaze B2<br/>Bucket Privado S3)]
+    A <--> OAI[OpenAI API<br/>gpt-4o-mini]
     W -.->|Navegação OAuth| A
     A <--> G[Google OAuth 2.0]
 ```
@@ -53,6 +56,8 @@ flowchart LR
 5. O documento fica disponível na listagem e pode ser visualizado (`GET /documents/:id`), reprocessado quando `FAILED` (`POST /documents/:id/retry`) ou excluído (`DELETE /documents/:id`).
 
 ---
+
+<a id="frontend"></a>
 
 ## 2. Frontend (`apps/web`)
 
@@ -69,6 +74,8 @@ flowchart LR
 - **Fluxos de Documentos**: Suporte a seleção de arquivo por input e drag-and-drop na área de documentos, validação prévia de formato (`PDF`, `DOCX`, `TXT`) e tamanho (`<= 10 MB`), modal de upload com campos obrigatórios (`title` 1–120, `instruction` 1–2000), grade com seleção individual/múltipla, modal de análise (texto puro com quebras preservadas; sem exibir a instrução), retry para documentos `FAILED` e exclusão única ou sequencial de vários itens.
 
 ---
+
+<a id="backend"></a>
 
 ## 3. Backend (`apps/api`)
 
@@ -88,6 +95,8 @@ flowchart LR
 
 ---
 
+<a id="banco-de-dados"></a>
+
 ## 4. Banco de Dados e Persistência
 
 - **Tecnologia**: PostgreSQL com Prisma ORM (`apps/api/prisma/schema.prisma`) e migrações em `apps/api/prisma/migrations/` (ex.: `20261117184442_init`).
@@ -98,6 +107,8 @@ flowchart LR
 - **Exclusão e Integridade**: Na exclusão de um documento (`DELETE /documents/:id`), o backend remove o objeto correspondente no storage e o registro correspondente no banco de dados (não há transação distribuída atômica única entre storage externo e banco relacional).
 
 ---
+
+<a id="autenticacao"></a>
 
 ## 5. Autenticação Google OAuth 2.0
 
@@ -112,9 +123,11 @@ flowchart LR
    - O backend valida o `state` OAuth e o `code` no callback (`/auth/google/callback`), persiste o usuário e emite o cookie HTTP-only `doc_analyzer_session`.
    - `GET /me` retorna `200` com `{ id, name, email, picture }` quando autenticado, ou `401` `{ error: { code, message } }` quando não autenticado.
    - `POST /auth/logout` encerra a sessão (`204`).
-   - _Observação de fluxo de falha OAuth_: quando o callback falha (ex.: `state` inválido ou ausência de `code`/`error`), a API responde `400`/`401` em JSON na própria URL de callback sem redirecionar automaticamente para a SPA.
+   - *Observação de fluxo de falha OAuth*: quando o callback falha (ex.: `state` inválido ou ausência de `code`/`error`), a API responde `400`/`401` em JSON na própria URL de callback sem redirecionar automaticamente para a SPA.
 
 ---
+
+<a id="armazenamento"></a>
 
 ## 6. Armazenamento de Arquivos: Backblaze B2 (S3-Compatible)
 
@@ -172,17 +185,19 @@ Ao excluir um documento via `DELETE /documents/:id`:
 
 ### 6.8 Troubleshooting do Storage
 
-| Sintoma / Cenário                     | Causas Prováveis                                                  | Verificação / Ação                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Endpoint incorreto / falha de conexão | `S3_ENDPOINT` mal formatado ou sem protocolo `https://`           | Conferir `S3_ENDPOINT` (ex.: `https://s3.us-west-004.backblazeb2.com`) e `S3_REGION` |
-| Credenciais inválidas                 | `S3_ACCESS_KEY_ID` ou `S3_SECRET_ACCESS_KEY` incorretos/revogados | Recriar a chave de aplicação no B2 e atualizar o ambiente                            |
-| Permissões insuficientes              | Chave sem permissão para o bucket ou sem ação necessária          | Ajustar escopo da chave ao bucket e permissões de leitura/escrita/exclusão           |
-| Bucket inexistente                    | Nome divergente em `S3_BUCKET` ou bucket em outra conta/região    | Conferir nome exato do bucket e a região correspondente                              |
-| Erro em upload ou presigned URL       | Falha de rede, clock skew ou expiração da URL (`~300s`)           | Verificar conectividade, horário do host e gerar nova URL via `GET /documents/:id`   |
-| Erro de CORS no navegador             | Origem não autorizada ou método/header bloqueado                  | Conferir CORS da API (`WEB_URL` e métodos) e, se aplicável, CORS do bucket           |
-| Falha na exclusão                     | Objeto inexistente ou erro no provedor (`502`)                    | Verificar logs da API e estado do objeto/registro no banco                           |
+| Sintoma / Cenário | Causas Prováveis | Verificação / Ação |
+|---|---|---|
+| Endpoint incorreto / falha de conexão | `S3_ENDPOINT` mal formatado ou sem protocolo `https://` | Conferir `S3_ENDPOINT` (ex.: `https://s3.us-west-004.backblazeb2.com`) e `S3_REGION` |
+| Credenciais inválidas | `S3_ACCESS_KEY_ID` ou `S3_SECRET_ACCESS_KEY` incorretos/revogados | Recriar a chave de aplicação no B2 e atualizar o ambiente |
+| Permissões insuficientes | Chave sem permissão para o bucket ou sem ação necessária | Ajustar escopo da chave ao bucket e permissões de leitura/escrita/exclusão |
+| Bucket inexistente | Nome divergente em `S3_BUCKET` ou bucket em outra conta/região | Conferir nome exato do bucket e a região correspondente |
+| Erro em upload ou presigned URL | Falha de rede, clock skew ou expiração da URL (`~300s`) | Verificar conectividade, horário do host e gerar nova URL via `GET /documents/:id` |
+| Erro de CORS no navegador | Origem não autorizada ou método/header bloqueado | Conferir CORS da API (`WEB_URL` e métodos) e, se aplicável, CORS do bucket |
+| Falha na exclusão | Objeto inexistente ou erro no provedor (`502`) | Verificar logs da API e estado do objeto/registro no banco |
 
 ---
+
+<a id="aws-s3"></a>
 
 ## 7. Configuração Equivalente na AWS S3
 
@@ -200,24 +215,26 @@ A integração atual do projeto utiliza o **Backblaze B2** via API compatível c
 
 ---
 
+<a id="api"></a>
+
 ## 8. API e Principais Fluxos
 
 A especificação contratual completa está em `apps/api/openapi.json` e disponível em `/documentation` e `/documentation/json`.
 
 ### Endpoints
 
-| Método   | Rota                    | Auth   | Respostas Principais                                                 | Descrição                                               |
-| -------- | ----------------------- | ------ | -------------------------------------------------------------------- | ------------------------------------------------------- |
-| `GET`    | `/health`               | Não    | `200`                                                                | Verifica disponibilidade da API                         |
-| `GET`    | `/auth/google`          | Não    | `302`                                                                | Inicia autenticação Google OAuth                        |
-| `GET`    | `/auth/google/callback` | Não    | `302`, `400`, `401`                                                  | Processa callback OAuth e define cookie de sessão       |
-| `GET`    | `/me`                   | Cookie | `200` (`UserResponse`), `401`                                        | Retorna usuário autenticado                             |
-| `POST`   | `/auth/logout`          | Cookie | `204`, `401`                                                         | Encerra sessão e remove cookie                          |
-| `POST`   | `/documents`            | Cookie | `201` (`DocumentResponse`), `400`, `401`, `413`, `415`, `500`, `502` | Envia arquivo (`multipart/form-data`) e executa análise |
-| `GET`    | `/documents`            | Cookie | `200` (`DocumentListItem[]`), `401`, `500`                           | Lista documentos do usuário                             |
-| `GET`    | `/documents/:id`        | Cookie | `200` (`DocumentDetailResponse`), `400`, `401`, `404`, `500`, `502`  | Retorna detalhes do documento e `fileUrl` assinada      |
-| `POST`   | `/documents/:id/retry`  | Cookie | `200` (`DocumentResponse`), `400`, `401`, `404`, `409`, `500`        | Reprocessa documento com status `FAILED`                |
-| `DELETE` | `/documents/:id`        | Cookie | `204`, `400`, `401`, `404`, `500`, `502`                             | Exclui documento do storage e do banco                  |
+| Método | Rota | Auth | Respostas Principais | Descrição |
+|---|---|---|---|---|
+| `GET` | `/health` | Não | `200` | Verifica disponibilidade da API |
+| `GET` | `/auth/google` | Não | `302` | Inicia autenticação Google OAuth |
+| `GET` | `/auth/google/callback` | Não | `302`, `400`, `401` | Processa callback OAuth e define cookie de sessão |
+| `GET` | `/me` | Cookie | `200` (`UserResponse`), `401` | Retorna usuário autenticado |
+| `POST` | `/auth/logout` | Cookie | `204`, `401` | Encerra sessão e remove cookie |
+| `POST` | `/documents` | Cookie | `201` (`DocumentResponse`), `400`, `401`, `413`, `415`, `500`, `502` | Envia arquivo (`multipart/form-data`) e executa análise |
+| `GET` | `/documents` | Cookie | `200` (`DocumentListItem[]`), `401`, `500` | Lista documentos do usuário |
+| `GET` | `/documents/:id` | Cookie | `200` (`DocumentDetailResponse`), `400`, `401`, `404`, `500`, `502` | Retorna detalhes do documento e `fileUrl` assinada |
+| `POST` | `/documents/:id/retry` | Cookie | `200` (`DocumentResponse`), `400`, `401`, `404`, `409`, `500` | Reprocessa documento com status `FAILED` |
+| `DELETE` | `/documents/:id` | Cookie | `204`, `400`, `401`, `404`, `500`, `502` | Exclui documento do storage e do banco |
 
 ### Formato Padrão de Erro
 
@@ -237,8 +254,8 @@ Códigos previstos na especificação:
 
 ### Principais Fluxos
 
-1. **Login**: Navegação para `/auth/google` -> consentimento no Google -> `/auth/google/callback` -> cookie `doc_analyzer_session` -> redirecionamento ao frontend -> `GET /me` (`200`) -> `/app/documentos`.
-2. **Upload e Análise**: Seleção via picker ou drag-and-drop -> validação de formato/tamanho -> preenchimento de `title` e `instruction` -> `POST /documents` (`multipart/form-data` com `title`, `instruction` e `file`) -> resposta `201` com status `COMPLETED`, `FAILED` ou `PROCESSING` -> atualização da listagem.
+1. **Login**: Navegação para `/auth/google` → consentimento no Google → `/auth/google/callback` → cookie `doc_analyzer_session` → redirecionamento ao frontend → `GET /me` (`200`) → `/app/documentos`.
+2. **Upload e Análise**: Seleção via picker ou drag-and-drop → validação de formato/tamanho → preenchimento de `title` e `instruction` → `POST /documents` (`multipart/form-data` com `title`, `instruction` e `file`) → resposta `201` com status `COMPLETED`, `FAILED` ou `PROCESSING` → atualização da listagem.
 3. **Listagem e Seleção**: `GET /documents` exibe os itens do usuário. Selecionar cards habilita a barra de ações: com 1 item selecionado aparecem **Visualizar análise** e **Excluir documentos**; com 2 ou mais itens aparece **Excluir documentos**.
 4. **Visualização da Análise**: Abre modal consultando `GET /documents/:id` e exibe título e análise em texto puro (sem exibir a instrução).
 5. **Retry**: Para documentos `FAILED`, o botão de tentar novamente chama `POST /documents/:id/retry` e atualiza detalhe e lista (`404` fecha/atualiza lista; `409` notifica conflito e atualiza).
@@ -247,6 +264,8 @@ Códigos previstos na especificação:
 
 ---
 
+<a id="instalacao"></a>
+
 ## 9. Instalação, Configuração e Execução Local
 
 ### Pré-requisitos
@@ -254,7 +273,7 @@ Códigos previstos na especificação:
 - **Node.js** `>= 20.16`
 - **npm**
 - **Docker** e **Docker Compose**
-- Credenciais de Google OAuth 2.0, chave da OpenAI (`OPENAI_API_KEY`) e credenciais/bucket de armazenamento S3-compatível (Backblaze B2)
+- Credenciais de Google OAuth 2.0, chave da OpenAI (`OPENAI_API_KEY`) e credenciais/bucket de armazenamento S3-compatível (Backblaze B2).
 
 ### Passo a Passo
 
@@ -297,57 +316,66 @@ Códigos previstos na especificação:
    ```
 
 6. **Iniciar Backend e Frontend**:
+
    - **API** (`http://localhost:3333`):
+
      ```bash
      npm run dev
      ```
+
    - **Frontend** (`http://localhost:5173`):
+
      ```bash
      npm run dev -w apps/web
      ```
+
      Para login local com Google OAuth, configure a API com `WEB_URL=http://localhost:5173` e `GOOGLE_REDIRECT_URI=http://localhost:3333/auth/google/callback`, utilizando `localhost` (em vez de `127.0.0.1`) no navegador.
 
 ---
+
+<a id="variaveis"></a>
 
 ## 10. Variáveis de Ambiente
 
 ### Backend (`.env` / `.env.test` na raiz)
 
-| Variável               | Serviço             | Finalidade                                              | Obrigatória                | Exemplo Seguro                                            |
-| ---------------------- | ------------------- | ------------------------------------------------------- | -------------------------- | --------------------------------------------------------- |
-| `NODE_ENV`             | API                 | Ambiente (`development`, `test`, `production`)          | Sim                        | `development`                                             |
-| `PORT`                 | API                 | Porta HTTP da API                                       | Não (padrão `3333`)        | `3333`                                                    |
-| `API_URL`              | API / OAuth         | URL base pública da API                                 | Sim                        | `http://localhost:3333`                                   |
-| `WEB_URL`              | API / CORS / OAuth  | URL da aplicação web para CORS e redirecionamento       | Sim                        | `http://localhost:5173`                                   |
-| `DATABASE_URL`         | PostgreSQL / Prisma | Conexão do banco principal                              | Sim                        | `postgresql://user:pass@localhost:5432/doc_analyzer`      |
-| `TEST_DATABASE_URL`    | PostgreSQL / Testes | Conexão do banco exclusivo de testes de integração      | Para testes de integração  | `postgresql://user:pass@localhost:5433/doc_analyzer_test` |
-| `GOOGLE_CLIENT_ID`     | Google OAuth        | Client ID da aplicação Web no Google Cloud              | Sim                        | `seu-client-id.apps.googleusercontent.com`                |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth        | Client Secret do OAuth 2.0                              | Sim                        | `GOCSPX-exemplo`                                          |
-| `GOOGLE_REDIRECT_URI`  | Google OAuth        | URI de callback cadastrada no Google Cloud              | Sim                        | `http://localhost:3333/auth/google/callback`              |
-| `SESSION_SECRET`       | Sessão / Cookies    | Chave secreta para assinatura de sessão (mín. 32 chars) | Sim                        | `chave-de-sessao-com-pelo-menos-32-caracteres`            |
-| `S3_ENDPOINT`          | Backblaze B2 / S3   | Endpoint S3-compatível                                  | Conforme provedor          | `https://s3.us-west-004.backblazeb2.com`                  |
-| `S3_REGION`            | Backblaze B2 / S3   | Região do bucket                                        | Sim                        | `us-west-004`                                             |
-| `S3_ACCESS_KEY_ID`     | Backblaze B2 / S3   | Identificador da chave de acesso                        | Sim                        | `K000exemplo`                                             |
-| `S3_SECRET_ACCESS_KEY` | Backblaze B2 / S3   | Chave secreta de acesso                                 | Sim                        | `K000segredoexemplo`                                      |
-| `S3_BUCKET`            | Backblaze B2 / S3   | Nome do bucket privado                                  | Sim                        | `doc-analyzer-bucket`                                     |
-| `OPENAI_API_KEY`       | OpenAI              | Chave de API da OpenAI                                  | Sim                        | `sk-exemplo`                                              |
-| `OPENAI_MODEL`         | OpenAI              | Modelo utilizado na análise                             | Não (padrão `gpt-4o-mini`) | `gpt-4o-mini`                                             |
-| `OPENAI_TIMEOUT_MS`    | OpenAI              | Tempo limite da requisição à OpenAI (ms)                | Conforme config            | `60000`                                                   |
-| `MAX_FILE_SIZE_MB`     | Upload              | Tamanho máximo de arquivo em MB                         | Não (padrão `10`)          | `10`                                                      |
-| `MAX_TEXT_CHARS`       | Extração / IA       | Limite máximo de caracteres extraídos para análise      | Conforme config            | `50000`                                                   |
+| Variável | Serviço | Finalidade | Obrigatória | Exemplo Seguro |
+|---|---|---|---|---|
+| `NODE_ENV` | API | Ambiente (`development`, `test`, `production`) | Sim | `development` |
+| `PORT` | API | Porta HTTP da API | Não (padrão `3333`) | `3333` |
+| `API_URL` | API / OAuth | URL base pública da API | Sim | `http://localhost:3333` |
+| `WEB_URL` | API / CORS / OAuth | URL da aplicação web para CORS e redirecionamento | Sim | `http://localhost:5173` |
+| `DATABASE_URL` | PostgreSQL / Prisma | Conexão do banco principal | Sim | `postgresql://user:pass@localhost:5432/doc_analyzer` |
+| `TEST_DATABASE_URL` | PostgreSQL / Testes | Conexão do banco exclusivo de testes de integração | Para testes de integração | `postgresql://user:pass@localhost:5433/doc_analyzer_test` |
+| `GOOGLE_CLIENT_ID` | Google OAuth | Client ID da aplicação Web no Google Cloud | Sim | `seu-client-id.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth | Client Secret do OAuth 2.0 | Sim | `GOCSPX-exemplo` |
+| `GOOGLE_REDIRECT_URI` | Google OAuth | URI de callback cadastrada no Google Cloud | Sim | `http://localhost:3333/auth/google/callback` |
+| `SESSION_SECRET` | Sessão / Cookies | Chave secreta para assinatura de sessão (mín. 32 chars) | Sim | `chave-de-sessao-com-pelo-menos-32-caracteres` |
+| `S3_ENDPOINT` | Backblaze B2 / S3 | Endpoint S3-compatível | Conforme provedor | `https://s3.us-west-004.backblazeb2.com` |
+| `S3_REGION` | Backblaze B2 / S3 | Região do bucket | Sim | `us-west-004` |
+| `S3_ACCESS_KEY_ID` | Backblaze B2 / S3 | Identificador da chave de acesso | Sim | `K000exemplo` |
+| `S3_SECRET_ACCESS_KEY` | Backblaze B2 / S3 | Chave secreta de acesso | Sim | `K000segredoexemplo` |
+| `S3_BUCKET` | Backblaze B2 / S3 | Nome do bucket privado | Sim | `doc-analyzer-bucket` |
+| `OPENAI_API_KEY` | OpenAI | Chave de API da OpenAI | Sim | `sk-exemplo` |
+| `OPENAI_MODEL` | OpenAI | Modelo utilizado na análise | Não (padrão `gpt-4o-mini`) | `gpt-4o-mini` |
+| `OPENAI_TIMEOUT_MS` | OpenAI | Tempo limite da requisição à OpenAI (ms) | Conforme config | `60000` |
+| `MAX_FILE_SIZE_MB` | Upload | Tamanho máximo de arquivo em MB | Não (padrão `10`) | `10` |
+| `MAX_TEXT_CHARS` | Extração / IA | Limite máximo de caracteres extraídos para análise | Conforme config | `50000` |
 
 ### Frontend (`apps/web/.env` e `apps/web/.env.e2e`)
 
-| Variável             | Serviço        | Finalidade                                                                             | Obrigatória | Exemplo Seguro             |
-| -------------------- | -------------- | -------------------------------------------------------------------------------------- | ----------- | -------------------------- |
-| `VITE_API_URL`       | Frontend       | Base da API (`http://localhost:3333` local; vazio em produção com rewrite same-origin) | Sim         | `http://localhost:3333`    |
-| `E2E_BASE_URL`       | Playwright E2E | URL do frontend sob teste                                                              | Para E2E    | `http://localhost:5173`    |
-| `E2E_API_URL`        | Playwright E2E | URL da API para verificações diretas nos testes E2E                                    | Para E2E    | `http://localhost:3333`    |
-| `E2E_SESSION_COOKIE` | Playwright E2E | Valor do cookie `doc_analyzer_session` de uma sessão autenticada (nunca versionar)     | Para E2E    | `<cookie-de-sessao-local>` |
+| Variável | Serviço | Finalidade | Obrigatória | Exemplo Seguro |
+|---|---|---|---|---|
+| `VITE_API_URL` | Frontend | Base da API (`http://localhost:3333` local; vazio em produção com rewrite same-origin) | Sim | `http://localhost:3333` |
+| `E2E_BASE_URL` | Playwright E2E | URL do frontend sob teste | Para E2E | `http://localhost:5173` |
+| `E2E_API_URL` | Playwright E2E | URL da API para verificações diretas nos testes E2E | Para E2E | `http://localhost:3333` |
+| `E2E_SESSION_COOKIE` | Playwright E2E | Valor do cookie `doc_analyzer_session` de uma sessão autenticada (nunca versionar) | Para E2E | `<cookie-de-sessao-local>` |
 
 > Variáveis `VITE_*` ficam embutidas no bundle público do frontend: nunca armazene segredos nelas. `.env`, `apps/web/.env` e `apps/web/.env.e2e` devem permanecer fora do controle de versão.
 
 ---
+
+<a id="testes"></a>
 
 ## 11. Testes Automatizados (Unitários, Componentes, Integração e E2E)
 
@@ -363,10 +391,13 @@ npm run build -w apps/api
 ### Backend (`apps/api`)
 
 - **Testes unitários**:
+
   ```bash
   npm run test:unit -w apps/api
   ```
+
 - **Testes de integração** (requer `.env.test` apontando para o banco exclusivo de testes e `postgres_test` ativo):
+
   ```bash
   docker compose up -d postgres_test
   npm run test:integration -w apps/api
@@ -375,38 +406,49 @@ npm run build -w apps/api
 ### Frontend (`apps/web`)
 
 - **Testes unitários e de componentes** (Vitest + React Testing Library + MSW):
+
   ```bash
   npm run test -w apps/web
   ```
+
 - **Testes E2E com Playwright** (contra stack local ou produção):
+
   1. Copie `apps/web/.env.e2e.example` para `apps/web/.env.e2e` (arquivo ignorado pelo Git) e preencha `E2E_BASE_URL`, `E2E_API_URL` e `E2E_SESSION_COOKIE` (copiado de um login real via DevTools -> Application -> Cookies).
   2. Execute a suíte:
+
      ```bash
      npm run test:e2e -w apps/web
      ```
+
      Os cenários limpam os documentos criados (`E2E-*`) e não automatizam o login interativo do Google (verificado manualmente).
 
 ---
 
+<a id="deploy"></a>
+
 ## 12. Deploy em Produção (Vercel + Railway)
 
-- **Frontend (Vercel)**: Publicado em `https://doc-analyzer-delta.vercel.app` como build estático com fallback de SPA (`apps/web/vercel.json`). Configurado com `VITE_API_URL` vazio e rewrites same-origin (`/health`, `/me`, `/auth/*`, `/documents*`) encaminhando para a API no Railway, mantendo o cookie de sessão como _first-party_ no domínio do frontend.
+- **Frontend (Vercel)**: Publicado em `https://doc-analyzer-delta.vercel.app` como build estático com fallback de SPA (`apps/web/vercel.json`). Configurado com `VITE_API_URL` vazio e rewrites same-origin (`/health`, `/me`, `/auth/*`, `/documents*`) encaminhando para a API no Railway, mantendo o cookie de sessão como *first-party* no domínio do frontend.
 - **Backend (Railway)**: Publicado em `https://doc-analyzerapi-production.up.railway.app` com build (`npm run build -w apps/api`) e start (`npm run start`).
 - **Configuração de Produção e OAuth**:
   - `WEB_URL` configurado com a URL do frontend (`https://doc-analyzer-delta.vercel.app`).
   - `API_URL` configurado com a URL da API (`https://doc-analyzerapi-production.up.railway.app`).
   - `GOOGLE_REDIRECT_URI` e URIs autorizadas no Google Cloud Console configuradas para o callback de autenticação.
 - **Verificação de Saúde**:
+
   ```bash
   curl https://doc-analyzerapi-production.up.railway.app/health
   ```
+
 - **Pós-processo**: Ao encerrar o uso dos ambientes de avaliação/demonstração, desative ou remova os recursos de nuvem criados.
 
 ---
 
+<a id="decisoes"></a>
+
 ## 13. Decisões Técnicas e Limitações Conhecidas
 
-- **Proxy Same-Origin via Rewrites na Vercel**: Evita restrições de cookies _cross-site_ entre domínios distintos do frontend e da API em navegadores modernos, sem exigir alterações no código de cookies da API.
+- **Proxy Same-Origin via Rewrites na Vercel**: Evita restrições de cookies *cross-site* entre domínios distintos do frontend e da API em navegadores modernos, sem exigir alterações no código de cookies da API.
 - **Autenticação por Cookie HTTP-Only e `GET /me`**: Impede acesso a tokens de sessão via JavaScript (`localStorage`/`sessionStorage`) e verifica a sessão ativamente pelo backend.
 - **Exclusão Sequencial no Frontend**: A exclusão de múltiplos documentos dispara `DELETE /documents/:id` em sequência (sem endpoint de lote), continuando após falhas individuais, mantendo selecionados os itens que falharem e invalidando a lista ao término.
 - **Sem Polling Contínuo**: A atualização da lista e de status (`PROCESSING` / `COMPLETED` / `FAILED`) ocorre após mutações, ao abrir detalhes/retry ou ao revalidar consultas (inclusive ao retornar o foco à janela).
