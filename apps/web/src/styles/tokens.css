@@ -200,4 +200,13 @@
   --icon-size-md: 20px;
   --icon-size-lg: 24px;
   --icon-stroke-width: 2px;
+
+  /*
+   * Card de documento — decisão técnica (FE-12).
+   * Nome, data e metadados não foram extraídos do Figma.
+   */
+  --font-size-document-name: 14px;
+  --line-height-document-name: 20px;
+  --document-icon-width: 40px;
+  --document-icon-height: 52px;
 }
