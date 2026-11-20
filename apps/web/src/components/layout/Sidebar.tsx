@@ -64,19 +64,29 @@ export default function Sidebar({
   return (
     <aside
       aria-label="Barra lateral"
-      className="flex w-full shrink-0 flex-col bg-primary text-sidebar-text md:min-h-screen md:w-[var(--sidebar-width)]"
+      className={cn(
+        "grid w-full shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center",
+        "gap-x-3 bg-primary px-4 py-3 text-sidebar-text",
+        "md:flex md:min-h-screen md:w-[var(--sidebar-width)] md:flex-col",
+        "md:items-stretch md:gap-x-0 md:p-0",
+      )}
     >
-      <div className="px-3 pb-8 pt-8">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-semibold leading-5">Escritório</span>
+      <div className="col-start-1 row-start-1 min-w-0 md:px-3 md:pb-8 md:pt-8">
+        <div className="flex flex-col gap-1 max-md:gap-0">
+          <span className="truncate text-sm font-semibold leading-5">
+            Escritório
+          </span>
 
-          <span className="text-sm leading-5 text-sidebar-text-secondary">
+          <span className="truncate text-sm leading-5 text-sidebar-text-secondary">
             Advogados associados
           </span>
         </div>
       </div>
 
-      <nav aria-label="Navegação principal" className="px-3">
+      <nav
+        aria-label="Navegação principal"
+        className="col-span-2 row-start-3 max-md:mt-3 md:px-3"
+      >
         <NavLink
           to="/app/documentos"
           end
@@ -99,8 +109,13 @@ export default function Sidebar({
         </NavLink>
       </nav>
 
-      <div className="mt-auto border-t border-white/20 p-4">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="contents md:mt-auto md:block md:border-t md:border-white/20 md:p-4">
+        <div
+          className={cn(
+            "col-span-2 row-start-2 flex min-w-0 items-center gap-3",
+            "max-md:mt-3 max-md:border-t max-md:border-white/20 max-md:pt-3",
+          )}
+        >
           <ProfileAvatar
             key={user.picture ?? "no-picture"}
             name={user.name}
@@ -130,7 +145,8 @@ export default function Sidebar({
           disabled={isLoggingOut}
           aria-busy={isLoggingOut}
           className={cn(
-            "mt-4 flex min-h-10 w-full items-center gap-3 rounded-md px-2",
+            "col-start-2 row-start-1 flex min-h-10 items-center gap-2 rounded-md px-3",
+            "md:mt-4 md:w-full md:gap-3 md:px-2",
             "text-sm font-medium text-sidebar-text-secondary",
             "transition-colors duration-[var(--interaction-transition-duration)]",
             "motion-reduce:transition-none",
