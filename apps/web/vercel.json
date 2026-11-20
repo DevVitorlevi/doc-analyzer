@@ -1,0 +1,28 @@
+{
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "https://doc-analyzerapi-production.up.railway.app/health"
+    },
+    {
+      "source": "/me",
+      "destination": "https://doc-analyzerapi-production.up.railway.app/me"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://doc-analyzerapi-production.up.railway.app/auth/:path*"
+    },
+    {
+      "source": "/documents",
+      "destination": "https://doc-analyzerapi-production.up.railway.app/documents"
+    },
+    {
+      "source": "/documents/:path*",
+      "destination": "https://doc-analyzerapi-production.up.railway.app/documents/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
