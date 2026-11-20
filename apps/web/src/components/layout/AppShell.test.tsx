@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+
+import { renderWithProviders } from "@/test/test-utils";
 
 import AppShell from "./AppShell";
 
@@ -19,7 +21,7 @@ vi.mock("@/features/auth/use-session", () => ({
 
 describe("AppShell", () => {
   it("exibe a Sidebar e o conteúdo da rota", () => {
-    render(
+    renderWithProviders(
       <MemoryRouter initialEntries={["/app/documentos"]}>
         <Routes>
           <Route element={<AppShell />}>
@@ -32,6 +34,7 @@ describe("AppShell", () => {
     expect(screen.getByText("Escritório")).toBeInTheDocument();
     expect(screen.getByText("Advogados associados")).toBeInTheDocument();
     expect(screen.getByText("Usuário de Teste")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sair" })).toBeEnabled();
 
     expect(
       screen.getByRole("heading", { name: "Documentos" }),
