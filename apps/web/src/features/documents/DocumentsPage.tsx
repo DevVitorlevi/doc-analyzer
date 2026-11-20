@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
 
+import AnalysisModal from "./components/AnalysisModal";
 import DocumentGrid from "./components/DocumentGrid";
 import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import SelectionBar from "./components/SelectionBar";
@@ -41,8 +42,11 @@ export default function DocumentsPage() {
   } = useFilePicker();
   const addButtonRef = useRef<HTMLButtonElement>(null);
 
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+
   const { isDragOver, dropZoneProps } = useFileDrop({
-    disabled: !documents.isSuccess || chosenFile !== null,
+    disabled:
+      !documents.isSuccess || chosenFile !== null || analysisId !== null,
     onDropFiles: handleDroppedFiles,
   });
 
@@ -71,6 +75,18 @@ export default function DocumentsPage() {
 
       return next;
     });
+  }, []);
+
+  const handleViewAnalysis = useCallback(() => {
+    const [onlyId] = Array.from(selectedDocumentIds);
+
+    if (selectedDocumentIds.size === 1 && onlyId !== undefined) {
+      setAnalysisId(onlyId);
+    }
+  }, [selectedDocumentIds]);
+
+  const handleCloseAnalysis = useCallback(() => {
+    setAnalysisId(null);
   }, []);
 
   return (
@@ -103,7 +119,10 @@ export default function DocumentsPage() {
             )}
 
             <div className="ml-auto flex flex-wrap items-center gap-(--space-8)">
-              <SelectionBar selectedCount={selectedDocumentIds.size} />
+              <SelectionBar
+                selectedCount={selectedDocumentIds.size}
+                onViewAnalysis={handleViewAnalysis}
+              />
 
               <Button
                 ref={addButtonRef}
@@ -181,6 +200,8 @@ export default function DocumentsPage() {
         onClose={clearChosenFile}
         returnFocusRef={addButtonRef}
       />
+
+      <AnalysisModal documentId={analysisId} onClose={handleCloseAnalysis} />
     </div>
   );
 }
