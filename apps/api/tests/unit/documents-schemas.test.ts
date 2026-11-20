@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import type { Document as DocumentRecord } from "@prisma/client";
+
 import {
   createDocumentFieldsSchema,
   toDocumentResponse,
@@ -15,7 +17,10 @@ describe("createDocumentFieldsSchema", () => {
     expect(result.success).toBe(true);
 
     if (result.success) {
-      expect(result.data).toEqual({ title: "Contrato", instruction: "Resuma" });
+      expect(result.data).toEqual({
+        title: "Contrato",
+        instruction: "Resuma",
+      });
     }
   });
 
@@ -23,13 +28,17 @@ describe("createDocumentFieldsSchema", () => {
     expect(createDocumentFieldsSchema.safeParse({}).success).toBe(false);
 
     expect(
-      createDocumentFieldsSchema.safeParse({ title: "   ", instruction: "x" })
-        .success,
+      createDocumentFieldsSchema.safeParse({
+        title: "   ",
+        instruction: "x",
+      }).success,
     ).toBe(false);
 
     expect(
-      createDocumentFieldsSchema.safeParse({ title: "x", instruction: "" })
-        .success,
+      createDocumentFieldsSchema.safeParse({
+        title: "x",
+        instruction: "",
+      }).success,
     ).toBe(false);
   });
 
@@ -89,6 +98,12 @@ describe("toDocumentResponse", () => {
       sizeBytes: 10,
       createdAt: now,
       updatedAt: now,
+
+      deletionRequestedAt: null,
+      deletionNextAttemptAt: null,
+      deletionLeaseUntil: null,
+      deletionAttempts: 0,
+      deletionError: null,
     };
 
     const response = toDocumentResponse(record);

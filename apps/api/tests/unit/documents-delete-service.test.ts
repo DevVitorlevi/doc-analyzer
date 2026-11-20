@@ -9,8 +9,8 @@ import { createFakeStorage } from "../helpers/fake-storage";
 const storageFake = createFakeStorage();
 const analyzerFake = createFakeDocumentAnalyzer();
 
-function makeService(options: { failDelete?: boolean } = {}) {
-  const repositoryFake = createFakeDocumentRepository(options);
+function makeService() {
+  const repositoryFake = createFakeDocumentRepository();
 
   const logger = {
     warn: vi.fn(),
@@ -57,7 +57,7 @@ describe("Document delete service", () => {
     storageFake.reset();
   });
 
-  it("deletes the storage object and database record", async () => {
+  it("queues document deletion without immediately deleting the storage object", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createDocument(repositoryFake.repository, {
@@ -74,8 +74,17 @@ describe("Document delete service", () => {
       service.deleteDocument(document.id, "user-1"),
     ).resolves.toBeUndefined();
 
-    expect(repositoryFake.records.has(document.id)).toBe(false);
-    expect(storageFake.objects.has(document.s3Key)).toBe(false);
+    expect(repositoryFake.records.has(document.id)).toBe(true);
+
+    expect(repositoryFake.records.get(document.id)?.status).toBe(
+      "DELETION_PENDING",
+    );
+
+    expect(storageFake.objects.has(document.s3Key)).toBe(true);
+
+    await expect(
+      repositoryFake.repository.findByIdForUser(document.id, "user-1"),
+    ).resolves.toBeNull();
   });
 
   it("throws NOT_FOUND when the document does not exist", async () => {
@@ -111,10 +120,15 @@ describe("Document delete service", () => {
     });
 
     expect(repositoryFake.records.has(document.id)).toBe(true);
+
+    expect(repositoryFake.records.get(document.id)?.status).not.toBe(
+      "DELETION_PENDING",
+    );
+
     expect(storageFake.objects.has(document.s3Key)).toBe(true);
   });
 
-  it("throws STORAGE_ERROR and preserves the database record when storage deletion fails", async () => {
+  it("does not expose a document after it has been queued for deletion", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createDocument(repositoryFake.repository, {
@@ -122,50 +136,15 @@ describe("Document delete service", () => {
       userId: "user-1",
     });
 
-    storageFake.objects.set(document.s3Key, {
-      body: Buffer.from("document content"),
-      contentType: document.mimeType,
-    });
-
-    storageFake.failures.delete = true;
+    await service.deleteDocument(document.id, "user-1");
 
     await expect(
       service.deleteDocument(document.id, "user-1"),
     ).rejects.toMatchObject({
-      code: "STORAGE_ERROR",
-      statusCode: 502,
-      message: "Não foi possível excluir o arquivo do documento.",
+      code: "NOT_FOUND",
+      statusCode: 404,
     });
 
     expect(repositoryFake.records.has(document.id)).toBe(true);
-    expect(storageFake.objects.has(document.s3Key)).toBe(true);
-  });
-
-  it("throws INTERNAL_ERROR and logs the failure when database deletion fails", async () => {
-    const { service, repositoryFake, logger } = makeService({
-      failDelete: true,
-    });
-
-    const document = await createDocument(repositoryFake.repository, {
-      id: "document-1",
-      userId: "user-1",
-    });
-
-    storageFake.objects.set(document.s3Key, {
-      body: Buffer.from("document content"),
-      contentType: document.mimeType,
-    });
-
-    await expect(
-      service.deleteDocument(document.id, "user-1"),
-    ).rejects.toMatchObject({
-      code: "INTERNAL_ERROR",
-      statusCode: 500,
-      message: "Não foi possível concluir a exclusão do documento.",
-    });
-
-    expect(repositoryFake.records.has(document.id)).toBe(true);
-    expect(storageFake.objects.has(document.s3Key)).toBe(false);
-    expect(logger.error).toHaveBeenCalledOnce();
   });
 });

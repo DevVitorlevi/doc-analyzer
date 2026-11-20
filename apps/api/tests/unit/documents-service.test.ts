@@ -1,199 +1,148 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { AiAnalysisError } from "@/integrations/openai/ai-analysis-error";
-import {
-  createDocumentService,
-  type CreateDocumentInput,
-} from "@/modules/documents/documents-service";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createDocumentService } from "@/modules/documents/documents-service";
+
 import { createFakeDocumentAnalyzer } from "../helpers/fake-document-analyzer";
 import { createFakeDocumentRepository } from "../helpers/fake-document-repository";
 import { createFakeStorage } from "../helpers/fake-storage";
-import { makePdf } from "../helpers/document-fixtures";
 
-const noopLogger = {
-  warn: () => undefined,
-  error: () => undefined,
-};
+const storageFake = createFakeStorage();
+const analyzerFake = createFakeDocumentAnalyzer();
 
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+function makeService() {
+  const repositoryFake = createFakeDocumentRepository();
 
-function makeInput(
-  overrides: Partial<CreateDocumentInput> = {},
-): CreateDocumentInput {
+  const logger = {
+    warn: vi.fn(),
+    error: vi.fn(),
+  };
+
+  const service = createDocumentService({
+    documents: repositoryFake.repository,
+    storage: storageFake.storage,
+    analyzer: analyzerFake.analyzer,
+    logger,
+    maxTextChars: 60_000,
+    maxFileSizeBytes: 10 * 1024 * 1024,
+  });
+
   return {
-    userId: "user-1",
-    title: "Contrato",
-    instruction: "Resuma o documento",
-    file: {
-      originalName: "contrato.txt",
-      buffer: Buffer.from("Cláusula primeira: o contrato vale um ano."),
-    },
-    ...overrides,
+    service,
+    repositoryFake,
+    logger,
   };
 }
 
-describe("document service", () => {
-  const storageFake = createFakeStorage();
-  const analyzerFake = createFakeDocumentAnalyzer();
+async function createDocument(
+  repository: ReturnType<typeof createFakeDocumentRepository>["repository"],
+  input: {
+    id: string;
+    userId: string;
+  },
+) {
+  return repository.create({
+    id: input.id,
+    userId: input.userId,
+    title: "Contrato",
+    instruction: "Resuma o documento",
+    s3Key: `${input.userId}/${input.id}.txt`,
+    originalName: "contrato.txt",
+    mimeType: "text/plain",
+    sizeBytes: 100,
+  });
+}
 
+describe("Document delete service", () => {
   beforeEach(() => {
     storageFake.reset();
-    analyzerFake.reset();
   });
 
-  function makeService(
-    options: { failCreate?: boolean; maxTextChars?: number } = {},
-  ) {
-    const repositoryFake = createFakeDocumentRepository({
-      failCreate: options.failCreate ?? false,
-    });
-
-    const service = createDocumentService({
-      documents: repositoryFake.repository,
-      storage: storageFake.storage,
-      analyzer: analyzerFake.analyzer,
-      logger: noopLogger,
-      maxTextChars: options.maxTextChars ?? 60000,
-      maxFileSizeBytes: MAX_FILE_SIZE_BYTES,
-    });
-
-    return { service, repositoryFake };
-  }
-
-  it("stores the file, analyzes it and completes the document", async () => {
+  it("queues document deletion without immediately deleting the storage object", async () => {
     const { service, repositoryFake } = makeService();
 
-    const document = await service.createDocument(makeInput());
-
-    expect(document.status).toBe("COMPLETED");
-    expect(document.analysis).toBe(analyzerFake.defaultResponse);
-    expect(document.s3Key).toBe(`user-1/${document.id}.txt`);
-    expect(document.mimeType).toBe("text/plain");
-    expect(storageFake.objects.has(document.s3Key)).toBe(true);
-    expect(repositoryFake.records.size).toBe(1);
-
-    expect(analyzerFake.calls).toHaveLength(1);
-    expect(analyzerFake.calls[0]).toMatchObject({
-      instruction: "Resuma o documento",
-      truncated: false,
+    const document = await createDocument(repositoryFake.repository, {
+      id: "document-1",
+      userId: "user-1",
     });
-  });
 
-  it("flags truncated text and informs the analyzer", async () => {
-    const { service } = makeService({ maxTextChars: 10 });
-
-    const document = await service.createDocument(
-      makeInput({
-        file: {
-          originalName: "longo.txt",
-          buffer: Buffer.from("a".repeat(100)),
-        },
-      }),
-    );
-
-    expect(document.status).toBe("COMPLETED");
-    expect(document.truncated).toBe(true);
-    expect(analyzerFake.calls[0]?.truncated).toBe(true);
-    expect(analyzerFake.calls[0]?.text).toHaveLength(10);
-  });
-
-  it("rejects an empty file before touching storage", async () => {
-    const { service, repositoryFake } = makeService();
+    storageFake.objects.set(document.s3Key, {
+      body: Buffer.from("document content"),
+      contentType: document.mimeType,
+    });
 
     await expect(
-      service.createDocument(
-        makeInput({
-          file: { originalName: "vazio.txt", buffer: Buffer.alloc(0) },
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR", statusCode: 400 });
+      service.deleteDocument(document.id, "user-1"),
+    ).resolves.toBeUndefined();
 
-    expect(storageFake.objects.size).toBe(0);
-    expect(repositoryFake.records.size).toBe(0);
+    expect(repositoryFake.records.has(document.id)).toBe(true);
+
+    expect(repositoryFake.records.get(document.id)?.status).toBe(
+      "DELETION_PENDING",
+    );
+
+    expect(storageFake.objects.has(document.s3Key)).toBe(true);
+
+    expect(
+      await repositoryFake.repository.findByIdForUser(document.id, "user-1"),
+    ).toBeNull();
   });
 
-  it("rejects an unsupported file type before touching storage", async () => {
-    const { service, repositoryFake } = makeService();
+  it("throws NOT_FOUND when the document does not exist", async () => {
+    const { service } = makeService();
 
     await expect(
-      service.createDocument(
-        makeInput({
-          file: { originalName: "planilha.csv", buffer: Buffer.from("a,b") },
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "UNSUPPORTED_FILE_TYPE" });
-
-    expect(storageFake.objects.size).toBe(0);
-    expect(repositoryFake.records.size).toBe(0);
+      service.deleteDocument("missing-document", "user-1"),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      statusCode: 404,
+      message: "Documento não encontrado.",
+    });
   });
 
-  it("does not create a record when the storage upload fails", async () => {
+  it("throws NOT_FOUND when the document belongs to another user", async () => {
     const { service, repositoryFake } = makeService();
-    storageFake.failures.put = true;
 
-    await expect(service.createDocument(makeInput())).rejects.toMatchObject({
-      code: "STORAGE_ERROR",
-      statusCode: 502,
+    const document = await createDocument(repositoryFake.repository, {
+      id: "document-1",
+      userId: "user-2",
     });
 
-    expect(repositoryFake.records.size).toBe(0);
-    expect(analyzerFake.calls).toHaveLength(0);
-  });
+    storageFake.objects.set(document.s3Key, {
+      body: Buffer.from("document content"),
+      contentType: document.mimeType,
+    });
 
-  it("removes the orphan object when the database insert fails", async () => {
-    const { service } = makeService({ failCreate: true });
+    await expect(
+      service.deleteDocument(document.id, "user-1"),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      statusCode: 404,
+    });
 
-    await expect(service.createDocument(makeInput())).rejects.toThrow(
-      "db down",
+    expect(repositoryFake.records.has(document.id)).toBe(true);
+    expect(repositoryFake.records.get(document.id)?.status).not.toBe(
+      "DELETION_PENDING",
     );
-
-    expect(storageFake.objects.size).toBe(0);
-  });
-
-  it("still rethrows the database error when the orphan cleanup also fails", async () => {
-    const { service } = makeService({ failCreate: true });
-    storageFake.failures.delete = true;
-
-    await expect(service.createDocument(makeInput())).rejects.toThrow(
-      "db down",
-    );
-  });
-
-  it("marks the document as FAILED when the AI fails, keeping the file", async () => {
-    const { service } = makeService();
-    analyzerFake.failWith(new AiAnalysisError("AI_RATE_LIMIT"));
-
-    const document = await service.createDocument(makeInput());
-
-    expect(document.status).toBe("FAILED");
-    expect(document.errorCode).toBe("AI_RATE_LIMIT");
-    expect(document.errorMessage).toBeTruthy();
-    expect(document.analysis).toBeNull();
     expect(storageFake.objects.has(document.s3Key)).toBe(true);
   });
 
-  it("marks the document as FAILED/UNREADABLE_FILE when there is no text", async () => {
-    const { service } = makeService();
+  it("does not expose a document after it has been queued for deletion", async () => {
+    const { service, repositoryFake } = makeService();
 
-    const document = await service.createDocument(
-      makeInput({
-        file: { originalName: "escaneado.pdf", buffer: makePdf([[]]) },
-      }),
-    );
+    const document = await createDocument(repositoryFake.repository, {
+      id: "document-1",
+      userId: "user-1",
+    });
 
-    expect(document.status).toBe("FAILED");
-    expect(document.errorCode).toBe("UNREADABLE_FILE");
-    expect(analyzerFake.calls).toHaveLength(0);
-    expect(storageFake.objects.has(document.s3Key)).toBe(true);
-  });
+    await service.deleteDocument(document.id, "user-1");
 
-  it("marks unexpected processing errors as FAILED/INTERNAL_ERROR", async () => {
-    const { service } = makeService();
-    analyzerFake.failWith(new Error("unexpected"));
+    await expect(
+      service.deleteDocument(document.id, "user-1"),
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      statusCode: 404,
+    });
 
-    const document = await service.createDocument(makeInput());
-
-    expect(document.status).toBe("FAILED");
-    expect(document.errorCode).toBe("INTERNAL_ERROR");
-    expect(document.errorMessage).not.toContain("unexpected");
+    expect(repositoryFake.records.has(document.id)).toBe(true);
   });
 });
