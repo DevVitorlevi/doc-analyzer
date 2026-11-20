@@ -1,12 +1,19 @@
 import { FileSearch } from "lucide-react";
 
-export default function DocumentsEmptyState() {
+interface DocumentsEmptyStateProps {
+  isDragActive?: boolean;
+}
+
+export default function DocumentsEmptyState({
+  isDragActive = false,
+}: DocumentsEmptyStateProps) {
   return (
     <div
       className={[
         "h-[75vh] flex flex-col items-center justify-center gap-(--space-10)",
-        "rounded-(--radius-container) border border-dashed border-border",
-        "px-6 py-16 text-center ",
+        "rounded-(--radius-container) border border-dashed",
+        "px-6 py-16 text-center",
+        isDragActive ? "border-primary" : "border-border",
       ].join(" ")}
     >
       <FileSearch

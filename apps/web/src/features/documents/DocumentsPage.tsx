@@ -9,12 +9,14 @@ import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import SelectionBar from "./components/SelectionBar";
 import UploadModal from "./components/UploadModal";
 import { useDocuments } from "./queries";
+import { useFileDrop } from "./use-file-drop";
 import { useFilePicker } from "./use-file-picker";
 
 const LOADING_SKELETON_COUNT = 4;
 const LOADING_LABEL = "Carregando documentos...";
 const LOAD_ERROR_MESSAGE = "Não foi possível carregar seus documentos.";
 const FILE_INPUT_LABEL = "Selecionar arquivo";
+const DOCUMENTS_AREA_LABEL = "Área de documentos";
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 const skeletonItems = Array.from(
@@ -33,10 +35,16 @@ export default function DocumentsPage() {
     inputRef,
     openPicker,
     handleInputChange,
+    handleDroppedFiles,
     chosenFile,
     clearChosenFile,
   } = useFilePicker();
   const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  const { isDragOver, dropZoneProps } = useFileDrop({
+    disabled: !documents.isSuccess || chosenFile !== null,
+    onDropFiles: handleDroppedFiles,
+  });
 
   const [selectedIds, setSelectedIds] =
     useState<ReadonlySet<string>>(EMPTY_SELECTION);
@@ -72,11 +80,18 @@ export default function DocumentsPage() {
       </h1>
 
       <div
+        role="region"
+        aria-label={DOCUMENTS_AREA_LABEL}
         aria-busy={documents.isPending}
+        data-drag-active={isDragOver}
+        {...dropZoneProps}
         className={[
           "flex flex-col h-[85vh] gap-[var(--space-12)] p-[var(--space-24)]",
-          "rounded-[var(--radius-container)] border border-border",
-          "bg-surface-white",
+          "rounded-[var(--radius-container)] border",
+          "motion-safe:transition-colors",
+          isDragOver
+            ? "border-primary bg-primary/5"
+            : "border-border bg-surface-white",
         ].join(" ")}
       >
         {documents.isSuccess && (
@@ -149,7 +164,7 @@ export default function DocumentsPage() {
         )}
 
         {documents.isSuccess && documents.data.length === 0 && (
-          <DocumentsEmptyState />
+          <DocumentsEmptyState isDragActive={isDragOver} />
         )}
 
         {documents.isSuccess && documents.data.length > 0 && (

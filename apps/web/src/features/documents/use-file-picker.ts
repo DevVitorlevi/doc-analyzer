@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 
-import { getErrorMessage } from "@/lib/errors";
+import { getErrorMessage, MULTIPLE_FILES_MESSAGE } from "@/lib/errors";
 import { validateFile } from "@/lib/file-validation";
 
 export function useFilePicker() {
@@ -16,6 +16,17 @@ export function useFilePicker() {
     setChosenFile(null);
   }, []);
 
+  const selectFile = useCallback((file: File) => {
+    const error = validateFile(file);
+
+    if (error !== null) {
+      toast.error(getErrorMessage(error));
+      return;
+    }
+
+    setChosenFile(file);
+  }, []);
+
   const handleInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const input = event.currentTarget;
@@ -27,22 +38,34 @@ export function useFilePicker() {
         return;
       }
 
-      const error = validateFile(file);
+      selectFile(file);
+    },
+    [selectFile],
+  );
 
-      if (error !== null) {
-        toast.error(getErrorMessage(error));
+  const handleDroppedFiles = useCallback(
+    (files: readonly File[]) => {
+      if (files.length > 1) {
+        toast.error(MULTIPLE_FILES_MESSAGE);
         return;
       }
 
-      setChosenFile(file);
+      const file = files[0];
+
+      if (file === undefined) {
+        return;
+      }
+
+      selectFile(file);
     },
-    [],
+    [selectFile],
   );
 
   return {
     inputRef,
     openPicker,
     handleInputChange,
+    handleDroppedFiles,
     chosenFile,
     clearChosenFile,
   };
