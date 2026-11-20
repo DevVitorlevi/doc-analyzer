@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { renderPdfCover } from "@/lib/pdf-cover";
+import { renderPdfCover } from "@/features/documents/utils/pdf-cover";
 
 interface Cover {
   file: File;

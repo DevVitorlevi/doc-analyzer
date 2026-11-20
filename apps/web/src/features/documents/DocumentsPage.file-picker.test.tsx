@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toast, Toaster } from "sonner";
 
-import { MAX_FILE_SIZE_BYTES } from "@/lib/file-validation";
+import { MAX_FILE_SIZE_BYTES } from "@/features/documents/utils/file-validation";
 import {
   renderWithProviders,
   screen,

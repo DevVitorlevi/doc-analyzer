@@ -2,7 +2,7 @@ import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { toast, Toaster } from "sonner";
 
-import { MAX_FILE_SIZE_BYTES } from "@/lib/file-validation";
+import { MAX_FILE_SIZE_BYTES } from "@/features/documents/utils/file-validation";
 import { renderWithProviders, screen } from "@/test/test-utils";
 
 import DocumentsPage from "./DocumentsPage";

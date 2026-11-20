@@ -8,7 +8,7 @@ import {
   getDefaultTitle,
   validateUploadForm,
   type UploadFormValues,
-} from "../upload-form";
+} from "../utils/upload-form";
 
 import FilePreviewBlock from "./FilePreviewBlock";
 

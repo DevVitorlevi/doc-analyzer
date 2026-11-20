@@ -1,6 +1,6 @@
-import { formatSize, mimeToExt, mimeToLabel } from "@/lib/format";
+import { formatSize, mimeToExt, mimeToLabel } from "@/features/documents/utils/format";
 
-import { usePdfCover } from "../use-pdf-cover";
+import { usePdfCover } from "../hooks/use-pdf-cover";
 
 const METADATA_SEPARATOR = " · ";
 const PDF_LABEL = "PDF";

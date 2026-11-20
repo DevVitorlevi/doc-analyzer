@@ -28,7 +28,7 @@ export default function AnalysisFailureBlock({
       aria-busy={isRetrying}
       className="flex flex-col items-start gap-(--space-12) rounded-(--radius-input) bg-control-secondary px-4 py-3"
     >
-      <p className="text-md text-(color:--color-danger-action)">
+      <p className="text-md text-(--color-danger-action)">
         {getErrorMessage(errorCode ?? "INTERNAL_ERROR")}
       </p>
 

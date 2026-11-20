@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 
 import { getErrorMessage, MULTIPLE_FILES_MESSAGE } from "@/lib/errors";
-import { validateFile } from "@/lib/file-validation";
+import { validateFile } from "@/features/documents/utils/file-validation";
 
 export function useFilePicker() {
   const inputRef = useRef<HTMLInputElement>(null);

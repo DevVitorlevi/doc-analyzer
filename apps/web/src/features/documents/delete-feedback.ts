@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import { ApiError } from "@/lib/http";
 
-import type { DeleteReport } from "./use-delete-documents";
+import type { DeleteReport } from "./hooks/use-delete-documents";
 
 const SINGLE_COUNT = 1;
 

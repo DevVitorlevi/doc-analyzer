@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
+import { FILE_INPUT_ACCEPT } from "@/features/documents/utils/file-validation";
 
 import AnalysisModal from "./components/AnalysisModal";
 import ConfirmDeleteDialog from "./components/ConfirmDeleteDialog";
@@ -12,9 +12,9 @@ import SelectionBar from "./components/SelectionBar";
 import UploadModal from "./components/UploadModal";
 import { notifyDeleteReport } from "./delete-feedback";
 import { useDocuments } from "./queries";
-import { useDeleteDocuments } from "./use-delete-documents";
-import { useFileDrop } from "./use-file-drop";
-import { useFilePicker } from "./use-file-picker";
+import { useDeleteDocuments } from "./hooks/use-delete-documents";
+import { useFileDrop } from "./hooks/use-file-drop";
+import { useFilePicker } from "./hooks/use-file-picker";
 
 const LOADING_SKELETON_COUNT = 4;
 const LOADING_LABEL = "Carregando documentos...";

@@ -1,7 +1,12 @@
 import { Check } from "lucide-react";
 import { useId, type KeyboardEvent } from "react";
 
-import { formatDate, formatSize, mimeToExt, mimeToLabel } from "@/lib/format";
+import {
+  formatDate,
+  formatSize,
+  mimeToExt,
+  mimeToLabel,
+} from "@/features/documents/utils/format";
 import { cn } from "@/lib/utils";
 
 import type { DocumentListItem, DocumentStatus } from "../types";
@@ -79,7 +84,7 @@ export default function DocumentCard({
             "text-center transition-colors",
             "duration-(--interaction-transition-duration) motion-reduce:transition-none",
             "focus-visible:outline-2 focus-visible:outline-offset-2",
-            "focus-visible:outline-[var(--color-primary-action)]",
+            "focus-visible:outline-(--color-primary-action)",
           ],
           selected ? "bg-selection" : "hover:bg-(--color-card-hover)",
         )}
@@ -110,7 +115,7 @@ export default function DocumentCard({
               "border border-border bg-surface-white",
             ].join(" ")}
           >
-            <span className="text-[length:var(--font-size-secondary-description)] font-semibold leading-[var(--line-height-secondary-description)] text-text-secondary">
+            <span className="text-(length:--font-size-secondary-description) font-semibold leading-(--line-height-secondary-description) text-text-secondary">
               {mimeToLabel(item.mimeType)}
             </span>
           </div>
@@ -120,8 +125,8 @@ export default function DocumentCard({
               className={[
                 "absolute bottom-0 left-1/2 -translate-x-1/2 whitespace-nowrap",
                 "rounded-full border bg-surface-white px-2 font-medium",
-                "text-[length:var(--font-size-secondary-description)]",
-                "leading-[var(--line-height-secondary-description)]",
+                "text-(length:--font-size-secondary-description)",
+                "leading-(--line-height-secondary-description)",
                 statusBadge.className,
               ].join(" ")}
             >
@@ -134,16 +139,16 @@ export default function DocumentCard({
           <p
             id={titleId}
             title={item.title}
-            className="truncate text-[length:var(--font-size-document-name)] font-medium leading-[var(--line-height-document-name)] text-text-primary"
+            className="truncate text-(length:--font-size-document-name) font-medium leading-(--line-height-document-name) text-text-primary"
           >
             {item.title}
           </p>
 
-          <p className="text-[length:var(--font-size-secondary-description)] leading-[var(--line-height-secondary-description)] text-text-secondary">
+          <p className="text-(length:--font-size-secondary-description) leading-(--line-height-secondary-description) text-text-secondary">
             {formatDate(item.createdAt)}
           </p>
 
-          <p className="text-[length:var(--font-size-secondary-description)] leading-[var(--line-height-secondary-description)] text-text-secondary">
+          <p className="text-(length:--font-size-secondary-description) leading-(--line-height-secondary-description) text-text-secondary">
             {metadata}
           </p>
         </div>

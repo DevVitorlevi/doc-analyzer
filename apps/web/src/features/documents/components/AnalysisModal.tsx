@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getErrorMessage } from "@/lib/errors";
-import { formatSize, mimeToExt, mimeToLabel } from "@/lib/format";
+import { formatSize, mimeToExt, mimeToLabel } from "@/features/documents/utils/format";
 import { ApiError } from "@/lib/http";
 
 import { DOCUMENTS_QUERY_KEY, useDocument, useRetryDocument } from "../queries";

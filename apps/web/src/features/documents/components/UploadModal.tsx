@@ -9,7 +9,7 @@ import {
 
 import { useUploadDocument } from "../queries";
 import { notifyUploadError, notifyUploadResult } from "../upload-feedback";
-import type { UploadFormValues } from "../upload-form";
+import type { UploadFormValues } from "../utils/upload-form";
 
 import UploadForm from "./UploadForm";
 
@@ -75,7 +75,7 @@ export default function UploadModal({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-[length:var(--font-size-dialog-title)] font-medium leading-[var(--line-height-dialog-title)] text-text-primary">
+          <DialogTitle className="text-(length:--font-size-dialog-title) font-medium leading-(--line-height-dialog-title) text-text-primary">
             {MODAL_TITLE}
           </DialogTitle>
         </DialogHeader>

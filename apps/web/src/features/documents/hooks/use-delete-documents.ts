@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 
 import { ApiError } from "@/lib/http";
 
-import { DOCUMENTS_QUERY_KEY, useDeleteDocument } from "./queries";
+import { DOCUMENTS_QUERY_KEY, useDeleteDocument } from "../queries";
 
 const NOT_FOUND_STATUS = 404;
 const UNAUTHORIZED_STATUS = 401;
