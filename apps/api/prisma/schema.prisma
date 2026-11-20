@@ -49,13 +49,19 @@ model Document {
   deletionRequestedAt   DateTime?
   deletionNextAttemptAt DateTime?
   deletionLeaseUntil    DateTime?
-  deletionAttempts      Int      @default(0)
-  deletionError         String?  @db.Text
+  deletionAttempts      Int       @default(0)
+  deletionError         String?   @db.Text
+
+  analysisNextAttemptAt DateTime  @default(now())
+  analysisLeaseUntil    DateTime?
+  analysisAttempts      Int       @default(0)
+  analysisError         String?   @db.Text
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, status])
   @@index([status, deletionNextAttemptAt, deletionLeaseUntil])
+  @@index([status, analysisNextAttemptAt, analysisLeaseUntil])
   @@map("documents")
 }
