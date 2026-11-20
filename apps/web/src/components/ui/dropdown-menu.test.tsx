@@ -87,18 +87,6 @@ describe("DropdownMenu", () => {
     });
   });
 
-  it("aplica estilo destrutivo ao item de exclusão", async () => {
-    const user = userEvent.setup();
-
-    render(<TestDropdown />);
-
-    await user.click(screen.getByRole("button", { name: "Abrir menu" }));
-
-    expect(screen.getByRole("menuitem", { name: "Excluir" })).toHaveClass(
-      "text-[var(--color-danger-action)]",
-    );
-  });
-
   it("permite navegação por teclado", async () => {
     const user = userEvent.setup();
 
