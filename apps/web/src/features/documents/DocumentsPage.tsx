@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
+import DocumentGrid from "./components/DocumentGrid";
 import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import { useDocuments } from "./queries";
 
@@ -13,6 +14,10 @@ const skeletonItems = Array.from(
   { length: LOADING_SKELETON_COUNT },
   (_, index) => index,
 );
+
+function formatDocumentCount(count: number): string {
+  return `${count} ${count === 1 ? "Documento" : "Documentos"}`;
+}
 
 export default function DocumentsPage() {
   const documents = useDocuments();
@@ -32,8 +37,14 @@ export default function DocumentsPage() {
         ].join(" ")}
       >
         {documents.isSuccess && (
-          <div className="flex min-h-10 items-center justify-end">
-            <Button className="pl-5 pr-6">
+          <div className="flex min-h-10 flex-wrap items-center justify-between gap-(--space-8)">
+            {documents.data.length > 0 && (
+              <p className="text-[length:var(--font-size-selection-counter)] font-medium leading-[var(--line-height-selection-counter)] tracking-[var(--letter-spacing-selection-counter)] text-text-primary">
+                {formatDocumentCount(documents.data.length)}
+              </p>
+            )}
+
+            <Button className="ml-auto pl-5 pr-6">
               <Plus aria-hidden="true" className="size-5 shrink-0" />
               Adicionar documento
             </Button>
@@ -80,7 +91,9 @@ export default function DocumentsPage() {
           <DocumentsEmptyState />
         )}
 
-        {/* TODO(FE-12): grade de documentos quando a lista não estiver vazia. */}
+        {documents.isSuccess && documents.data.length > 0 && (
+          <DocumentGrid documents={documents.data} />
+        )}
       </div>
     </div>
   );
