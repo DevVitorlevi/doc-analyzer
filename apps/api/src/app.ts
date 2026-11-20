@@ -65,6 +65,7 @@ export async function buildApp(
   await app.register(cors, {
     origin: env.WEB_URL,
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "DELETE", "OPTIONS"],
   });
 
   await app.register(multipart, {
