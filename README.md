@@ -21,7 +21,6 @@ Aplicação web full-stack para autenticação com Google OAuth 2.0, envio e ger
 13. [Testes e Validação](#13-testes-e-validação)
 14. [Deploy em Produção](#14-deploy-em-produção)
 15. [Decisões Técnicas e Segurança](#15-decisões-técnicas-e-segurança)
-16. [Limitações e Considerações Operacionais](#16-limitações-e-considerações-operacionais)
 
 ---
 
