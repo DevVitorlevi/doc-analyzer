@@ -8,7 +8,7 @@ import DocumentsPage from "./DocumentsPage";
 
 const API_URL = "http://localhost:3333";
 const DOCUMENT_ID = "00000000-0000-4000-8000-000000000010";
-const MODAL_TITLE = "Prévia do Documento";
+const MODAL_TITLE = "Análise da IA";
 
 const listItem = {
   id: DOCUMENT_ID,
