@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { render, screen, userEvent, waitFor } from "@/test/test-utils";
+import {
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from "@/test/test-utils";
 
 import UploadModal from "./UploadModal";
 
@@ -61,7 +66,7 @@ function TwoFilesHarness() {
 async function openModal(file: File) {
   const user = userEvent.setup();
 
-  render(<Harness file={file} />);
+  renderWithProviders(<Harness file={file} />);
   await user.click(screen.getByRole("button", { name: OPEN_LABEL }));
   await screen.findByRole("dialog", { name: "Prévia do Documento" });
 
@@ -70,7 +75,7 @@ async function openModal(file: File) {
 
 describe("UploadModal", () => {
   it("não renderiza o modal sem arquivo escolhido", () => {
-    render(<Harness file={makeFile("contrato.pdf")} />);
+    renderWithProviders(<Harness file={makeFile("contrato.pdf")} />);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -143,7 +148,7 @@ describe("UploadModal", () => {
     );
   });
 
-  it("com dados válidos não mostra erro e mantém o modal aberto", async () => {
+  it("com dados válidos envia o documento e fecha o modal", async () => {
     const user = await openModal(makeFile("contrato.pdf"));
 
     await user.type(
@@ -152,14 +157,8 @@ describe("UploadModal", () => {
     );
     await user.click(screen.getByRole("button", { name: "Salvar" }));
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByLabelText("Título")).toHaveAttribute(
-      "aria-invalid",
-      "false",
-    );
-    expect(screen.getByLabelText("Instrução para IA")).toHaveAttribute(
-      "aria-invalid",
-      "false",
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
   });
 
@@ -193,7 +192,7 @@ describe("UploadModal com arquivos diferentes", () => {
   it("ao reabrir com outro arquivo mostra o título do novo arquivo", async () => {
     const user = userEvent.setup();
 
-    render(<TwoFilesHarness />);
+    renderWithProviders(<TwoFilesHarness />);
 
     await user.click(screen.getByRole("button", { name: "Abrir primeiro" }));
     expect(await screen.findByLabelText("Título")).toHaveValue("primeiro.pdf");

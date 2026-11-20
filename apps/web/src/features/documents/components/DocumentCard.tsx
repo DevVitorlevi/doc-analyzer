@@ -75,15 +75,13 @@ export default function DocumentCard({
           [
             "group relative flex h-(--document-card-height) w-(--document-card-width)",
             "cursor-pointer flex-col gap-(--space-8) overflow-hidden",
-            "rounded-(--radius-card) border px-(--space-6) py-(--space-4)",
+            "rounded-(--radius-card) px-(--space-6) py-(--space-4)",
             "text-center transition-colors",
             "duration-(--interaction-transition-duration) motion-reduce:transition-none",
             "focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-[var(--color-primary-action)]",
           ],
-          selected
-            ? "border-primary bg-selection"
-            : "border-border bg-document-card hover:bg-(--color-card-hover)",
+          selected ? "bg-selection" : "hover:bg-(--color-card-hover)",
         )}
       >
         <span
@@ -96,7 +94,7 @@ export default function DocumentCard({
               "motion-reduce:transition-none",
             ],
             selected
-              ? "border-(--color-primary-action) bg-(--color-primary-action) text-white opacity-100"
+              ? "border-(--color-primary-action) bg-[#0090FF] text-white opacity-100"
               : "border-border bg-surface-white opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
           )}
         >

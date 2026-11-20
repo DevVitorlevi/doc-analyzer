@@ -29,27 +29,27 @@ export default function SelectionBar({ selectedCount }: SelectionBarProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="secondary" className="px-6">
+      <DropdownMenuTrigger asChild className="">
+        <Button variant="secondary" className="px-6 font-normal cursor-pointer">
           {formatSelectionLabel(selectedCount)}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem variant="destructive">
+      <DropdownMenuContent align="end" className="border border-[#D9D9E0]">
+        <DropdownMenuItem variant="default" className="text-md">
           <Trash2
             aria-hidden="true"
-            className="size-4 shrink-0"
+            className="size-6 shrink-0 text-error"
             strokeWidth={2}
           />
           Excluir documentos
         </DropdownMenuItem>
 
         {canViewAnalysis && (
-          <DropdownMenuItem className="text-[var(--color-primary-action)]">
+          <DropdownMenuItem className="text-md">
             <Eye
               aria-hidden="true"
-              className="size-4 shrink-0"
+              className="size-6 shrink-0 text-success"
               strokeWidth={2}
             />
             Visualizar análise

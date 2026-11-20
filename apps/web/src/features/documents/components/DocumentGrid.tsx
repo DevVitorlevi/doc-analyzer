@@ -19,7 +19,7 @@ export default function DocumentGrid({
     <ul
       aria-label={GRID_LABEL}
       className={[
-        "grid min-h-0 flex-1 content-start gap-(--space-8) overflow-y-auto",
+        "grid min-h-0 flex-1 content-start gap-(--space-24) overflow-y-auto",
         "grid-cols-[repeat(auto-fill,var(--document-card-width))]",
       ].join(" ")}
     >

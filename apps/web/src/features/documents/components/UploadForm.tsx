@@ -1,9 +1,14 @@
+import { LoaderCircle } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { getDefaultTitle, validateUploadForm } from "../upload-form";
+import {
+  getDefaultTitle,
+  validateUploadForm,
+  type UploadFormValues,
+} from "../upload-form";
 
 import FilePreviewBlock from "./FilePreviewBlock";
 
@@ -12,6 +17,7 @@ const TITLE_PLACEHOLDER = "Document.doc";
 const INSTRUCTION_LABEL = "Instrução para IA";
 const INSTRUCTION_PLACEHOLDER = "Como a IA deve analisar este documento";
 const SUBMIT_LABEL = "Salvar";
+const SUBMITTING_LABEL = "Analisando…";
 
 const LABEL_CLASS = "text-md px-3 font-medium text-text-primary";
 const ERROR_CLASS = [
@@ -26,13 +32,24 @@ const TEXTAREA_CLASS = [
   "focus-visible:outline-2 focus-visible:outline-offset-2",
   "focus-visible:outline-(--color-primary-action)",
   "aria-invalid:border-(--color-danger-action)",
+  "disabled:cursor-not-allowed disabled:opacity-(--disabled-opacity)",
+].join(" ");
+const SUBMIT_BUTTON_CLASS = [
+  "aria-disabled:pointer-events-none aria-disabled:cursor-not-allowed",
+  "aria-disabled:opacity-(--disabled-opacity) cursor-pointer font-light text-xl",
 ].join(" ");
 
 interface UploadFormProps {
   file: File;
+  isSubmitting: boolean;
+  onSubmit: (values: UploadFormValues) => void;
 }
 
-export default function UploadForm({ file }: UploadFormProps) {
+export default function UploadForm({
+  file,
+  isSubmitting,
+  onSubmit,
+}: UploadFormProps) {
   const titleId = useId();
   const titleErrorId = useId();
   const instructionId = useId();
@@ -49,6 +66,11 @@ export default function UploadForm({ file }: UploadFormProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     setSubmitted(true);
 
     const result = validateUploadForm({ title, instruction });
@@ -63,12 +85,13 @@ export default function UploadForm({ file }: UploadFormProps) {
       return;
     }
 
-    // TODO(FE-16): enviar POST /documents com título, instrução e arquivo.
+    onSubmit({ title: title.trim(), instruction: instruction.trim() });
   }
 
   return (
     <form
       noValidate
+      aria-busy={isSubmitting}
       onSubmit={handleSubmit}
       className="flex flex-col gap-(--space-16)"
     >
@@ -84,6 +107,7 @@ export default function UploadForm({ file }: UploadFormProps) {
             id={titleId}
             value={title}
             placeholder={TITLE_PLACEHOLDER}
+            disabled={isSubmitting}
             aria-invalid={errors.title !== undefined}
             aria-describedby={
               errors.title !== undefined ? titleErrorId : undefined
@@ -108,6 +132,7 @@ export default function UploadForm({ file }: UploadFormProps) {
             rows={3}
             value={instruction}
             placeholder={INSTRUCTION_PLACEHOLDER}
+            disabled={isSubmitting}
             aria-invalid={errors.instruction !== undefined}
             aria-describedby={
               errors.instruction !== undefined ? instructionErrorId : undefined
@@ -124,8 +149,19 @@ export default function UploadForm({ file }: UploadFormProps) {
       </div>
 
       <div className="flex justify-end">
-        <Button type="submit" className="text-xl font-light">
-          {SUBMIT_LABEL}
+        <Button
+          type="submit"
+          aria-disabled={isSubmitting}
+          className={SUBMIT_BUTTON_CLASS}
+        >
+          {isSubmitting && (
+            <LoaderCircle
+              aria-hidden="true"
+              className="size-4 shrink-0 motion-safe:animate-spin"
+              strokeWidth={2}
+            />
+          )}
+          {isSubmitting ? SUBMITTING_LABEL : SUBMIT_LABEL}
         </Button>
       </div>
     </form>
