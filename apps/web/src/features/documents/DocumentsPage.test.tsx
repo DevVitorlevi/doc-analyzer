@@ -21,6 +21,12 @@ const documentListItem = {
   status: "COMPLETED",
 };
 
+const secondDocumentListItem = {
+  ...documentListItem,
+  id: "00000000-0000-4000-8000-000000000003",
+  title: "Parecer",
+};
+
 describe("DocumentsPage", () => {
   it("exibe o título e mostra loading em vez do estado vazio durante o carregamento", async () => {
     let releaseRequest!: () => void;
@@ -69,6 +75,9 @@ describe("DocumentsPage", () => {
     expect(
       screen.getByRole("button", { name: "Adicionar documento" }),
     ).toBeEnabled();
+    expect(
+      screen.queryByRole("list", { name: "Lista de documentos" }),
+    ).not.toBeInTheDocument();
   });
 
   it("exibe erro sem texto do servidor e refaz a consulta ao tentar novamente", async () => {
@@ -109,7 +118,7 @@ describe("DocumentsPage", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("não exibe o estado vazio quando a lista possui documentos", async () => {
+  it("exibe a grade e o contador no singular quando há um documento", async () => {
     server.use(
       http.get(`${API_URL}/documents`, () =>
         HttpResponse.json([documentListItem]),
@@ -118,12 +127,30 @@ describe("DocumentsPage", () => {
 
     renderWithProviders(<DocumentsPage />);
 
+    expect(await screen.findByText("1 Documento")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: "Adicionar documento" }),
+      screen.getByRole("list", { name: "Lista de documentos" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Contrato")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Adicionar documento" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: EMPTY_TITLE }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("pluraliza o contador e renderiza um card por documento", async () => {
+    server.use(
+      http.get(`${API_URL}/documents`, () =>
+        HttpResponse.json([documentListItem, secondDocumentListItem]),
+      ),
+    );
+
+    renderWithProviders(<DocumentsPage />);
+
+    expect(await screen.findByText("2 Documentos")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 });
