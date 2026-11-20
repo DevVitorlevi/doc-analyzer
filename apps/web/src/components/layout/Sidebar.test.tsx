@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import Sidebar from "./Sidebar";
 
@@ -13,10 +14,20 @@ const userFixture: User = {
   picture: null,
 };
 
-function renderSidebar(user: User = userFixture) {
+interface RenderSidebarOptions {
+  user?: User;
+  onLogout?: () => void;
+  isLoggingOut?: boolean;
+}
+
+function renderSidebar({
+  user = userFixture,
+  onLogout = vi.fn(),
+  isLoggingOut = false,
+}: RenderSidebarOptions = {}) {
   return render(
     <MemoryRouter initialEntries={["/app/documentos"]}>
-      <Sidebar user={user} />
+      <Sidebar user={user} onLogout={onLogout} isLoggingOut={isLoggingOut} />
     </MemoryRouter>,
   );
 }
@@ -49,8 +60,7 @@ describe("Sidebar", () => {
 
   it("exibe as iniciais quando a imagem falha ao carregar", () => {
     const { container } = renderSidebar({
-      ...userFixture,
-      picture: "https://example.com/avatar.png",
+      user: { ...userFixture, picture: "https://example.com/avatar.png" },
     });
 
     const image = container.querySelector("img");
@@ -63,9 +73,34 @@ describe("Sidebar", () => {
     expect(screen.getByText("UT")).toBeInTheDocument();
   });
 
-  it("mantém o botão Sair desabilitado até a implementação do logout", () => {
-    renderSidebar();
+  it("aciona o logout ao clicar em Sair", async () => {
+    const user = userEvent.setup();
+    const onLogout = vi.fn();
 
-    expect(screen.getByRole("button", { name: "Sair" })).toBeDisabled();
+    renderSidebar({ onLogout });
+
+    const button = screen.getByRole("button", { name: "Sair" });
+
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+
+    expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("desabilita o botão Sair e não aciona o logout durante o envio", async () => {
+    const user = userEvent.setup();
+    const onLogout = vi.fn();
+
+    renderSidebar({ onLogout, isLoggingOut: true });
+
+    const button = screen.getByRole("button", { name: "Sair" });
+
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+
+    await user.click(button);
+
+    expect(onLogout).not.toHaveBeenCalled();
   });
 });

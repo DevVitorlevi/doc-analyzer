@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, LogOut } from "lucide-react";
+import { FileText, Loader2, LogOut } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import type { User } from "@/features/auth/use-session";
@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   user: User;
+  onLogout: () => void;
+  isLoggingOut?: boolean;
 }
 
 function getInitials(name: string) {
@@ -52,7 +54,13 @@ function ProfileAvatar({ name, picture }: Pick<User, "name" | "picture">) {
   );
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({
+  user,
+  onLogout,
+  isLoggingOut = false,
+}: SidebarProps) {
+  const LogoutIcon = isLoggingOut ? Loader2 : LogOut;
+
   return (
     <aside
       aria-label="Barra lateral"
@@ -118,16 +126,28 @@ export default function Sidebar({ user }: SidebarProps) {
 
         <button
           type="button"
-          disabled
+          onClick={onLogout}
+          disabled={isLoggingOut}
+          aria-busy={isLoggingOut}
           className={cn(
-            "mt-4 flex min-h-10 w-full items-center gap-3 rounded-md px-1",
+            "mt-4 flex min-h-10 w-full items-center gap-3 rounded-md px-2",
             "text-sm font-medium text-sidebar-text-secondary",
-            "cursor-not-allowed opacity-[var(--disabled-opacity)]",
+            "transition-colors duration-[var(--interaction-transition-duration)]",
+            "motion-reduce:transition-none",
+            "hover:bg-white/10 hover:text-white active:bg-white/20",
             "focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-white",
+            "disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)]",
+            "disabled:hover:bg-transparent disabled:hover:text-sidebar-text-secondary",
           )}
         >
-          <LogOut aria-hidden="true" className="size-5 shrink-0" />
+          <LogoutIcon
+            aria-hidden="true"
+            className={cn(
+              "size-5 shrink-0",
+              isLoggingOut && "animate-spin motion-reduce:animate-none",
+            )}
+          />
           <span>Sair</span>
         </button>
       </div>
