@@ -92,7 +92,7 @@ export default function DocumentsPage() {
 
               <Button
                 ref={addButtonRef}
-                className="pl-5 pr-6"
+                className="pl-5 pr-6 font-light cursor-pointer"
                 onClick={openPicker}
               >
                 <Plus aria-hidden="true" className="size-5 shrink-0" />

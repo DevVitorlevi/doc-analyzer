@@ -138,7 +138,7 @@ export default function Sidebar({
             "focus-visible:outline-2 focus-visible:outline-offset-2",
             "focus-visible:outline-white",
             "disabled:cursor-not-allowed disabled:opacity-[var(--disabled-opacity)]",
-            "disabled:hover:bg-transparent disabled:hover:text-sidebar-text-secondary",
+            "disabled:hover:bg-transparent disabled:hover:text-sidebar-text-secondary cursor-pointer",
           )}
         >
           <LogoutIcon
