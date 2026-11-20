@@ -1,31 +1,42 @@
 import Fastify, { type FastifyInstance } from "fastify";
+
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+
 import { fileURLToPath } from "node:url";
 
 import type { Env } from "@/config/env";
+
 import { healthRoutes } from "@/modules/health/health-routes";
 import { authRoutes } from "@/modules/auth/auth-routes";
+
 import {
   createGoogleOAuthProvider,
   type GoogleOAuthProvider,
 } from "@/modules/auth/google-oauth";
+
 import { documentsRoutes } from "@/modules/documents/documents-routes";
 import { createDocumentService } from "@/modules/documents/documents-service";
+import { createDocumentDeletionWorker } from "@/modules/documents/document-deletion-worker";
+
 import {
   createOpenAIAnalyzer,
   type DocumentAnalyzer,
 } from "@/integrations/openai/openai-analyzer";
+
 import {
   createS3Storage,
   type StorageProvider,
 } from "@/integrations/storage/s3-storage";
+
 import { createDocumentRepository } from "@/repositories/document-repository";
+
 import { registerErrorHandler } from "@/shared/errors/error-handler";
 import { createPrismaClient } from "@/shared/database/prisma";
+
 import { buildLoggerOptions } from "./shared/logger/logger";
 
 export interface BuildAppOptions {
@@ -49,7 +60,10 @@ export async function buildApp(
   app.decorate("prisma", prisma);
   app.decorateRequest("currentUser", null);
 
+  let stopDocumentDeletionWorker: (() => Promise<void>) | undefined;
+
   app.addHook("onClose", async () => {
+    await stopDocumentDeletionWorker?.();
     await prisma.$disconnect();
   });
 
@@ -97,9 +111,12 @@ export async function buildApp(
     },
   });
 
+  const storage = options.storage ?? createS3Storage(env);
+  const documents = createDocumentRepository(prisma);
+
   const documentService = createDocumentService({
-    documents: createDocumentRepository(prisma),
-    storage: options.storage ?? createS3Storage(env),
+    documents,
+    storage,
     analyzer: options.documentAnalyzer ?? createOpenAIAnalyzer(env),
     logger: app.log,
     maxTextChars: env.MAX_TEXT_CHARS,
@@ -109,6 +126,18 @@ export async function buildApp(
   await app.register(authRoutes(env));
   await app.register(documentsRoutes(env, documentService));
   await app.register(healthRoutes);
+
+  if (env.NODE_ENV !== "test") {
+    const deletionWorker = createDocumentDeletionWorker({
+      documents,
+      storage,
+      logger: app.log,
+    });
+
+    deletionWorker.start();
+
+    stopDocumentDeletionWorker = () => deletionWorker.stop();
+  }
 
   return app;
 }
