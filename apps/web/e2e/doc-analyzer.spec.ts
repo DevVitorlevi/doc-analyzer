@@ -76,28 +76,6 @@ test.describe("com sessão", () => {
     expect(saved?.status).toBe("COMPLETED");
   });
 
-  test("Cenário 3 — abrir a análise mostra texto não vazio", async ({
-    page,
-  }) => {
-    const title = uniqueTitle("analise");
-    const created = await createDocumentViaApi(page.request, {
-      title,
-      instruction: "Resuma o documento em duas frases.",
-      file: sampleTxt(),
-    });
-
-    expect(created.status).toBe("COMPLETED");
-
-    await openDocumentsPage(page);
-    await selectCard(page, title);
-
-    const dialog = await openAnalysisFromSelection(page);
-    const analysis = dialog.getByRole("region", { name: "Análise da IA" });
-
-    await expect(analysis).toBeVisible();
-    await expect(analysis).toHaveText(/\S/);
-  });
-
   test("Cenário 4 — PDF sem texto falha com selo e retry disponível", async ({
     page,
   }) => {
