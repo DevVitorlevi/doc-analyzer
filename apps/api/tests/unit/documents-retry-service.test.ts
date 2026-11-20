@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDocumentService } from "@/modules/documents/documents-service";
 
 import { createFakeDocumentAnalyzer } from "../helpers/fake-document-analyzer";
-
 import { createFakeDocumentRepository } from "../helpers/fake-document-repository";
-
 import { createFakeStorage } from "../helpers/fake-storage";
 
 const storageFake = createFakeStorage();
@@ -63,7 +61,7 @@ describe("Document retry service", () => {
     analyzerFake.reset();
   });
 
-  it("retrieves the stored file and completes the analysis", async () => {
+  it("queues the analysis without waiting for processing", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createFailedDocument(repositoryFake.repository, {
@@ -71,19 +69,13 @@ describe("Document retry service", () => {
       userId: "user-1",
     });
 
-    storageFake.objects.set(document.s3Key, {
-      body: Buffer.from("Conteúdo do contrato para análise."),
-      contentType: document.mimeType,
-    });
-
     const result = await service.retryDocument(document.id, "user-1");
 
-    expect(result.status).toBe("COMPLETED");
-    expect(result.analysis).toBe(analyzerFake.defaultResponse);
+    expect(result.status).toBe("PROCESSING");
     expect(result.errorCode).toBeNull();
     expect(result.errorMessage).toBeNull();
-    expect(analyzerFake.calls).toHaveLength(1);
-    expect(analyzerFake.calls[0]?.instruction).toBe("Resuma o documento");
+    expect(analyzerFake.calls).toHaveLength(0);
+    expect(repositoryFake.records.get(document.id)?.status).toBe("PROCESSING");
   });
 
   it("returns NOT_FOUND when the document does not exist", async () => {
@@ -140,7 +132,7 @@ describe("Document retry service", () => {
     expect(analyzerFake.calls).toHaveLength(0);
   });
 
-  it("keeps the document FAILED when storage retrieval fails", async () => {
+  it("does not retrieve the stored file during the retry request", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createFailedDocument(repositoryFake.repository, {
@@ -152,13 +144,13 @@ describe("Document retry service", () => {
 
     const result = await service.retryDocument(document.id, "user-1");
 
-    expect(result.status).toBe("FAILED");
-    expect(result.errorCode).toBe("STORAGE_ERROR");
-    expect(result.errorMessage).toContain("recuperar o arquivo");
+    expect(result.status).toBe("PROCESSING");
+    expect(result.errorCode).toBeNull();
+    expect(repositoryFake.records.get(document.id)?.status).toBe("PROCESSING");
     expect(analyzerFake.calls).toHaveLength(0);
   });
 
-  it("keeps the document FAILED when analysis fails", async () => {
+  it("does not execute the analyzer during the retry request", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createFailedDocument(repositoryFake.repository, {
@@ -166,23 +158,17 @@ describe("Document retry service", () => {
       userId: "user-1",
     });
 
-    storageFake.objects.set(document.s3Key, {
-      body: Buffer.from("Conteúdo do contrato para análise."),
-      contentType: document.mimeType,
-    });
-
     analyzerFake.failWith(new Error("Unexpected analyzer failure"));
 
     const result = await service.retryDocument(document.id, "user-1");
 
-    expect(result.status).toBe("FAILED");
-    expect(result.errorCode).toBe("INTERNAL_ERROR");
-    expect(result.errorMessage).toBe(
-      "Erro inesperado ao processar o documento.",
-    );
+    expect(result.status).toBe("PROCESSING");
+    expect(result.errorCode).toBeNull();
+    expect(repositoryFake.records.get(document.id)?.status).toBe("PROCESSING");
+    expect(analyzerFake.calls).toHaveLength(0);
   });
 
-  it("does not analyze a document with an unsupported persisted MIME type", async () => {
+  it("does not queue a document with an unsupported persisted MIME type", async () => {
     const { service, repositoryFake } = makeService();
 
     const document = await createFailedDocument(repositoryFake.repository, {
@@ -196,5 +182,6 @@ describe("Document retry service", () => {
     expect(result.status).toBe("FAILED");
     expect(result.errorCode).toBe("UNSUPPORTED_FILE_TYPE");
     expect(analyzerFake.calls).toHaveLength(0);
+    expect(repositoryFake.records.get(document.id)?.status).toBe("FAILED");
   });
 });
