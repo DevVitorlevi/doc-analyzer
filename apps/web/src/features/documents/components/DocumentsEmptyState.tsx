@@ -23,12 +23,12 @@ export default function DocumentsEmptyState({
         className="size-14 shrink-0 text-[#B9BBC6]"
       />
 
-      <div className="flex max-w-[400px] flex-col gap-2">
-        <h2 className="text-[length:var(--font-size-empty-title)] font-medium leading-[var(--line-height-empty-title)] text-text-primary">
+      <div className="flex max-w-100 flex-col gap-2">
+        <h2 className="text-(length:--font-size-empty-title) font-medium leading-(--line-height-empty-title) text-text-primary">
           Você ainda não tem documentos
         </h2>
 
-        <p className="text-[length:var(--font-size-empty-description)] leading-[var(--line-height-empty-description)] text-text-secondary">
+        <p className="text-(length:--font-size-empty-description) leading-(--line-height-empty-description) text-text-secondary">
           Clique em “Adicionar documento” para enviar um arquivo PDF, DOCX ou
           TXT.
         </p>

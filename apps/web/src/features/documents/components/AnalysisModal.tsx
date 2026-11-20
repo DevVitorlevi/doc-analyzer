@@ -55,13 +55,13 @@ function DocumentInfoBlock({ mimeType, sizeBytes }: DocumentInfoBlockProps) {
       >
         <span
           aria-hidden="true"
-          className="text-[length:var(--font-size-secondary-description)] font-semibold leading-[var(--line-height-secondary-description)] text-text-secondary"
+          className="text-(length:--font-size-secondary-description) font-semibold leading-(--line-height-secondary-description) text-text-secondary"
         >
           {mimeToLabel(mimeType)}
         </span>
       </div>
 
-      <p className="absolute bottom-(--space-8) left-(--space-16) text-[length:var(--font-size-secondary-description)] leading-[var(--line-height-secondary-description)] text-text-secondary">
+      <p className="absolute bottom-(--space-8) left-(--space-16) text-(length:--font-size-secondary-description) leading-(--line-height-secondary-description) text-text-secondary">
         {metadata}
       </p>
     </div>
@@ -182,7 +182,7 @@ export default function AnalysisModal({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-[length:var(--font-size-dialog-title)] font-medium leading-[var(--line-height-dialog-title)] text-text-primary">
+          <DialogTitle className="text-(length:--font-size-dialog-title) font-medium leading-(--line-height-dialog-title) text-text-primary">
             {MODAL_TITLE}
           </DialogTitle>
         </DialogHeader>
@@ -190,7 +190,7 @@ export default function AnalysisModal({
         {query.isError && (
           <p
             role="alert"
-            className="px-3 py-8 text-center text-[length:var(--font-size-empty-description)] leading-[var(--line-height-empty-description)] text-text-primary"
+            className="px-3 py-8 text-center text-(length:--font-size-empty-description) leading-(--line-height-empty-description) text-text-primary"
           >
             {errorMessage}
           </p>

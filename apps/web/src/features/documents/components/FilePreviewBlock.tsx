@@ -65,14 +65,14 @@ export default function FilePreviewBlock({ file }: FilePreviewBlockProps) {
         >
           <span
             aria-hidden="true"
-            className="text-[length:var(--font-size-secondary-description)] font-semibold leading-[var(--line-height-secondary-description)] text-text-secondary"
+            className="text-(length:--font-size-secondary-description) font-semibold leading-(--line-height-secondary-description) text-text-secondary"
           >
             {label}
           </span>
         </div>
       )}
 
-      <p className="absolute bottom-(--space-8) left-(--space-16) text-[length:var(--font-size-secondary-description)] leading-[var(--line-height-secondary-description)] text-text-secondary">
+      <p className="absolute bottom-(--space-8) left-(--space-16) text-(length:--font-size-secondary-description) leading-(--line-height-secondary-description) text-text-secondary">
         {metadata}
       </p>
     </div>

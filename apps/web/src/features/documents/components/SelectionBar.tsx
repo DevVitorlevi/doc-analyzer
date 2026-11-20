@@ -41,7 +41,7 @@ export default function SelectionBar({
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="border border-[#D9D9E0]">
+      <DropdownMenuContent align="end" className="border border-border">
         <DropdownMenuItem
           variant="default"
           className="text-md"
