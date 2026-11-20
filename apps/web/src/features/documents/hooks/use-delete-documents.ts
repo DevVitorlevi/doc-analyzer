@@ -1,9 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-
 import { ApiError } from "@/lib/http";
-
 import { DOCUMENTS_QUERY_KEY, useDeleteDocument } from "../queries";
+import type { DocumentListItem } from "../types";
 
 const NOT_FOUND_STATUS = 404;
 const UNAUTHORIZED_STATUS = 401;
@@ -26,6 +25,13 @@ export function useDeleteDocuments() {
   const runningRef = useRef(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  function removeFromListCache(id: string) {
+    queryClient.setQueryData<DocumentListItem[]>(
+      DOCUMENTS_QUERY_KEY,
+      (current) => current?.filter((document) => document.id !== id),
+    );
+  }
+
   async function deleteDocuments(
     ids: readonly string[],
   ): Promise<DeleteReport | null> {
@@ -45,9 +51,11 @@ export function useDeleteDocuments() {
         try {
           await mutateAsync(id);
           deletedIds.push(id);
+          removeFromListCache(id);
         } catch (error) {
           if (hasStatus(error, NOT_FOUND_STATUS)) {
             deletedIds.push(id);
+            removeFromListCache(id);
             continue;
           }
 
