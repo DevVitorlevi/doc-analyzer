@@ -1,6 +1,6 @@
 # Jus Digital Document Analyzer
 
-Aplicação web full-stack para autenticação com Google OAuth 2.0, envio e gerenciamento de documentos (`PDF`, `DOCX` e `TXT`), extração de texto e análise orientada por instruções do usuário utilizando Inteligência Artificial (`gpt-4o-mini`). A aplicação utiliza PostgreSQL para persistência, Backblaze B2 para armazenamento privado de arquivos e uma arquitetura de exclusão assíncrona com processamento resiliente.
+Aplicação web full-stack para autenticação com Google OAuth 2.0, envio e gerenciamento de documentos (`PDF`, `DOCX` e `TXT`), extração de texto e análise orientada por instruções do usuário utilizando Inteligência Artificial (`gpt-4o-mini`). A aplicação utiliza PostgreSQL para persistência, Backblaze B2 para armazenamento privado de arquivos e filas persistentes com workers para processamento assíncrono de análises e exclusões.
 
 ---
 
@@ -14,7 +14,7 @@ Aplicação web full-stack para autenticação com Google OAuth 2.0, envio e ger
 6. [Banco de Dados e Persistência](#6-banco-de-dados-e-persistência)
 7. [Autenticação Google OAuth 2.0](#7-autenticação-google-oauth-20)
 8. [Armazenamento — Backblaze B2](#8-armazenamento--backblaze-b2)
-9. [Fila de Exclusão e Worker](#9-fila-de-exclusão-e-worker)
+9. [Filas e Workers](#9-filas-e-workers)
 10. [API e Principais Fluxos](#10-api-e-principais-fluxos)
 11. [Instalação e Execução Local](#11-instalação-e-execução-local)
 12. [Variáveis de Ambiente](#12-variáveis-de-ambiente)
@@ -44,8 +44,9 @@ O usuário pode enviar documentos, informar uma instrução sobre o tipo de aná
 - Pré-visualização da capa de arquivos PDF no cliente.
 - Reprocessamento de documentos com falha.
 - Exclusão individual e múltipla de documentos.
-- Fila persistente para processamento de exclusões.
-- Tentativas automáticas de exclusão em caso de falhas no armazenamento.
+- Fila persistente para processamento de análises e exclusões.
+- Processamento de análises em segundo plano, sem manter a requisição de upload ou retry aguardando a OpenAI.
+- Tentativas automáticas de exclusão em caso de falhas no armazenamento e reagendamento de falhas temporárias na análise.
 - Isolamento dos documentos por usuário.
 
 ### Tecnologias principais
@@ -77,7 +78,7 @@ A aplicação utiliza uma arquitetura dividida entre frontend, backend, banco de
 
 - **Frontend (`apps/web`)**: aplicação SPA responsável pela interface, navegação, interação com o usuário, validações preliminares e comunicação com a API.
 - **Backend (`apps/api`)**: API REST responsável pela autenticação, regras de negócio, validações definitivas, processamento dos documentos e comunicação com os serviços externos.
-- **PostgreSQL**: persistência de usuários, documentos, resultados de análise e informações necessárias ao processamento da fila de exclusão.
+- **PostgreSQL**: persistência de usuários, documentos, resultados de análise e informações necessárias ao processamento das filas de análise e exclusão.
 - **Backblaze B2**: armazenamento privado dos arquivos enviados.
 - **Google OAuth 2.0**: autenticação dos usuários.
 - **OpenAI API**: análise do conteúdo extraído dos documentos.
@@ -94,6 +95,7 @@ flowchart LR
     AI[OpenAI API]
     G[Google OAuth 2.0]
     Worker[Document Deletion Worker]
+    AnalysisWorker[Document Analysis Worker]
 
     U --> W
     W <-->|HTTP / Cookie HTTP-only| A
@@ -104,6 +106,9 @@ flowchart LR
     A -->|Solicitação de exclusão| DB
     Worker <-->|Consultar e atualizar fila| DB
     Worker -->|Excluir objeto| B2
+    AnalysisWorker <-->|Consultar e atualizar fila| DB
+    AnalysisWorker -->|Recuperar documento| B2
+    AnalysisWorker -->|Solicitar análise| AI
 ```
 
 ### 2.3. Fluxo geral de utilização
@@ -113,10 +118,10 @@ flowchart LR
 3. O backend processa o callback, registra ou atualiza o usuário e estabelece a sessão.
 4. O usuário seleciona um documento e informa o título e a instrução de análise.
 5. O frontend envia o arquivo à API por `multipart/form-data`.
-6. O backend valida o arquivo, armazena o objeto no Backblaze B2 e persiste seus metadados.
-7. O texto é extraído e encaminhado para análise pela OpenAI.
-8. O resultado é persistido e disponibilizado na aplicação.
-9. O usuário pode consultar, reprocessar ou excluir o documento.
+6. O backend valida o arquivo, armazena o objeto no Backblaze B2, persiste seus metadados e registra a análise na fila.
+7. A API retorna o documento com status `PROCESSING`, sem aguardar a extração de texto ou a resposta da OpenAI.
+8. O worker de análise recupera o arquivo, extrai o texto e solicita a análise à OpenAI.
+9. O resultado ou a falha do processamento é persistido, e o usuário pode consultar, reprocessar ou excluir o documento.
 
 ---
 
@@ -332,9 +337,12 @@ Organiza as funcionalidades por domínio:
 - `documents/`: upload, consulta, processamento, retry e exclusão de documentos.
 - `health/`: verificação de disponibilidade da API.
 
-O módulo de documentos também contém o worker responsável por processar a fila de exclusão:
+O módulo de documentos contém workers independentes para as filas persistentes:
 
-`src/modules/documents/document-deletion-worker.ts`
+- `src/modules/documents/document-deletion-worker.ts`: processa exclusões de arquivos.
+- `src/modules/documents/document-analysis-worker.ts`: processa análises de documentos.
+
+A lógica de execução de uma análise fica separada em `document-analysis-processor.ts`.
 
 **`src/integrations/`**
 
@@ -346,7 +354,7 @@ Camada de comunicação com serviços externos:
 
 **`src/repositories/`**
 
-Responsável pelo acesso aos dados persistidos. O repositório de documentos centraliza operações relacionadas à consulta, atualização e processamento da fila de exclusão.
+Responsável pelo acesso aos dados persistidos. O repositório de documentos centraliza operações relacionadas à consulta, atualização e reivindicação de tarefas das filas de análise e exclusão.
 
 **`src/shared/`**
 
@@ -448,7 +456,20 @@ A tabela também possui um índice composto para auxiliar a consulta dos documen
 
 Esse índice considera o status, o próximo horário de tentativa e a validade do lease.
 
-### 6.5. Ambientes de banco de dados
+### 6.5. Campos da fila de análise
+
+A análise também utiliza uma fila persistida no próprio registro `Document`:
+
+| Campo | Finalidade |
+|---|---|
+| `analysisNextAttemptAt` | Momento a partir do qual a análise pode ser tentada |
+| `analysisLeaseUntil` | Expiração da reserva temporária do processamento |
+| `analysisAttempts` | Quantidade de tentativas de processamento |
+| `analysisError` | Último erro operacional registrado |
+
+O índice `documents_analysis_queue_idx` auxilia a busca de documentos `PROCESSING` elegíveis, considerando o próximo horário de tentativa e a validade do lease.
+
+### 6.6. Ambientes de banco de dados
 
 O `docker-compose.yml` disponibiliza dois serviços PostgreSQL:
 
@@ -614,7 +635,7 @@ Como o backend utiliza o SDK S3, as operações principais permanecem iguais. A 
 
 ---
 
-## 9. Fila de Exclusão e Worker
+## 9. Filas e Workers
 
 ### 9.1. Problema da exclusão direta
 
@@ -718,13 +739,44 @@ A fila de exclusão exigiu alterações no schema Prisma:
 
 A migração deve ser aplicada em cada ambiente antes de executar a versão do backend que depende desses campos. A aplicação em produção deve ocorrer como parte do procedimento de deploy.
 
-### 9.9. Garantias e limitações
+### 9.9. Garantias e limitações da exclusão
 
 A fila persistente permite recuperar tarefas após reinicializações do backend e repetir operações que falharam.
 
 Entretanto, a exclusão continua dependendo da disponibilidade do provedor de armazenamento e do banco. O sistema não oferece uma transação distribuída entre os dois serviços.
 
 A estratégia adotada prioriza consistência eventual: o registro permanece no banco enquanto a exclusão física não for concluída.
+
+### 9.10. Fila de análise e worker
+
+A análise de documentos também é executada por uma fila persistida no PostgreSQL. Assim, o upload e o retry não precisam aguardar a extração do texto nem a chamada à OpenAI para responder ao usuário.
+
+O fluxo funciona da seguinte maneira:
+
+1. Após validar e armazenar o arquivo, a API cria o registro do documento com status `PROCESSING` e agenda a análise.
+2. O endpoint de upload retorna `201` com o documento ainda em processamento.
+3. O worker identifica tarefas `PROCESSING` cujo horário de tentativa foi alcançado e cujo lease está ausente ou expirado.
+4. O worker recupera o arquivo no Backblaze B2, extrai o texto e solicita a análise à OpenAI.
+5. Em caso de sucesso, o resultado é salvo e o documento passa para `COMPLETED`.
+6. Em caso de falha definitiva de processamento, o documento passa para `FAILED` com as informações da falha.
+7. Falhas operacionais temporárias, como indisponibilidade ao recuperar o arquivo, são reagendadas para uma nova tentativa.
+
+O worker está implementado em `apps/api/src/modules/documents/document-analysis-worker.ts`, enquanto `document-analysis-processor.ts` concentra a extração e a chamada ao analisador.
+
+O retry de um documento `FAILED` apenas reinicializa os dados de controle da fila e devolve o documento ao estado `PROCESSING`. A requisição não executa a análise diretamente.
+
+A reivindicação das tarefas utiliza `FOR UPDATE SKIP LOCKED` e lease temporário para reduzir o risco de duas instâncias processarem a mesma tarefa simultaneamente. O worker consulta a fila periodicamente, inicia com o backend e não é iniciado em `NODE_ENV=test`.
+
+Parâmetros padrão implementados:
+
+| Parâmetro | Valor |
+|---|---:|
+| Intervalo de polling | 1 segundo |
+| Duração do lease | 5 minutos |
+| Backoff inicial | 5 segundos |
+| Backoff máximo | 1 hora |
+
+O resultado da análise é persistido no PostgreSQL e pode ser consultado posteriormente pelo endpoint de detalhes do documento.
 
 ---
 
@@ -745,7 +797,7 @@ A especificação contratual da API está disponível em:
 | `GET` | `/auth/google/callback` | Não | Processa callback OAuth |
 | `GET` | `/me` | Cookie | Consulta usuário autenticado |
 | `POST` | `/auth/logout` | Cookie | Encerra a sessão |
-| `POST` | `/documents` | Cookie | Envia e processa documento |
+| `POST` | `/documents` | Cookie | Envia documento e agenda a análise |
 | `GET` | `/documents` | Cookie | Lista documentos do usuário |
 | `GET` | `/documents/:id` | Cookie | Consulta detalhes e análise |
 | `POST` | `/documents/:id/retry` | Cookie | Reprocessa documento com falha |
@@ -785,7 +837,7 @@ Validações:
 | `title` | 1 a 120 caracteres |
 | `instruction` | 1 a 2.000 caracteres |
 
-Após as validações, o backend realiza o armazenamento, a extração de texto e a análise com a OpenAI.
+Após as validações, o backend armazena o arquivo, cria o registro e agenda a análise. A resposta inicial contém o documento com status `PROCESSING`; a extração de texto e a chamada à OpenAI acontecem posteriormente no worker.
 
 ### 10.4. Principais fluxos
 
@@ -795,7 +847,7 @@ Após as validações, o backend realiza o armazenamento, a extração de texto 
 
 **Upload**
 
-Seleção de arquivo → validação → preenchimento dos campos → `POST /documents` → armazenamento → extração → análise → persistência do resultado.
+Seleção de arquivo → validação → preenchimento dos campos → `POST /documents` → armazenamento e criação do registro `PROCESSING` → resposta da API → worker → extração e análise → persistência do resultado.
 
 **Listagem**
 
@@ -807,7 +859,7 @@ Seleção de arquivo → validação → preenchimento dos campos → `POST /doc
 
 **Retry**
 
-`POST /documents/:id/retry` → validação do estado `FAILED` → novo processamento.
+`POST /documents/:id/retry` → validação do estado `FAILED` → reinicialização da tarefa na fila → resposta `PROCESSING` → processamento posterior pelo worker.
 
 **Exclusão individual**
 
@@ -994,7 +1046,7 @@ npm run build -w apps/api
 npm run test:unit -w apps/api
 ```
 
-Os testes unitários validam serviços, regras de negócio, repositórios simulados, schemas e processamento da fila de exclusão.
+Os testes unitários validam serviços, regras de negócio, repositórios simulados, schemas e o processamento das filas de exclusão e análise.
 
 **Testes de integração**
 
@@ -1050,7 +1102,18 @@ A implementação da fila de exclusão possui testes específicos para:
 - Backoff exponencial.
 - Elegibilidade de documentos para processamento.
 
-### 13.5. Validação registrada
+### 13.5. Cobertura da análise assíncrona
+
+A análise assíncrona possui testes específicos para:
+
+- Reivindicação de documentos pendentes.
+- Processamento e conclusão de uma análise.
+- Tratamento de falhas na recuperação do arquivo.
+- Reagendamento de falhas operacionais.
+- Registro de falhas de análise.
+- Rejeição de formatos não suportados.
+
+### 13.6. Validação registrada
 
 Na validação realizada em 20/11/2026 para a implementação da exclusão resiliente:
 
@@ -1095,7 +1158,7 @@ npm run build -w apps/api
 npm run start -w apps/api
 ```
 
-O processo de inicialização do backend também registra o worker de exclusão, quando o ambiente permite seu funcionamento.
+O processo de inicialização do backend registra os workers de exclusão e análise, quando o ambiente permite seu funcionamento. Ambos são encerrados junto ao ciclo de vida da aplicação.
 
 ### 14.3. Configurações de produção
 
@@ -1204,9 +1267,9 @@ O funcionamento completo depende da disponibilidade dos serviços:
 
 ### 16.2. Análise com Inteligência Artificial
 
-A análise depende da extração correta do texto e dos limites configurados para o processamento.
+A análise é executada em segundo plano e depende da extração correta do texto, dos limites configurados e da disponibilidade da OpenAI.
 
-Documentos sem texto extraível, com conteúdo ilegível ou que ultrapassem os limites definidos podem resultar em falha de processamento.
+Documentos sem texto extraível, com conteúdo ilegível ou que ultrapassem os limites definidos podem resultar em falha de processamento. Enquanto a tarefa estiver aguardando ou sendo executada, o documento permanece com status `PROCESSING`.
 
 ### 16.3. Consistência da exclusão
 
@@ -1216,9 +1279,9 @@ A resposta `204` representa a aceitação da solicitação, enquanto o worker re
 
 Em caso de falha no storage, o registro permanece como `DELETION_PENDING` e aguarda uma nova tentativa.
 
-### 16.4. Dependência do worker
+### 16.4. Dependência dos workers
 
-O processamento da fila depende de uma instância ativa do backend com o worker habilitado.
+O processamento das filas depende de uma instância ativa do backend com os workers habilitados.
 
 Se o backend estiver indisponível, as tarefas permanecem persistidas no banco e poderão ser processadas quando o serviço voltar a funcionar.
 
