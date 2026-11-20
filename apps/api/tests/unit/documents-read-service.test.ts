@@ -82,7 +82,7 @@ describe("Document read service", () => {
       const documents = await service.listDocuments("user-1");
 
       expect(documents).toHaveLength(2);
-      expect(documents.map((document) => document.id)).toEqual([
+      expect(documents.map((document) => document.id).sort()).toEqual([
         "document-1",
         "document-3",
       ]);

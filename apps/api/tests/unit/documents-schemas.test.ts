@@ -104,6 +104,10 @@ describe("toDocumentResponse", () => {
       deletionLeaseUntil: null,
       deletionAttempts: 0,
       deletionError: null,
+      analysisNextAttemptAt: new Date(),
+      analysisLeaseUntil: null,
+      analysisAttempts: 0,
+      analysisError: null,
     };
 
     const response = toDocumentResponse(record);

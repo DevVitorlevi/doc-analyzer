@@ -1,5 +1,8 @@
 import type { Document as DocumentRecord } from "@prisma/client";
-import type { DocumentRepository } from "@/repositories/document-repository";
+import type {
+  DocumentAnalysisTask,
+  DocumentRepository,
+} from "@/repositories/document-repository";
 
 export function createFakeDocumentRepository(
   options: {
@@ -36,6 +39,10 @@ export function createFakeDocumentRepository(
         deletionLeaseUntil: null,
         deletionAttempts: 0,
         deletionError: null,
+      analysisNextAttemptAt: new Date(),
+      analysisLeaseUntil: null,
+      analysisAttempts: 0,
+      analysisError: null,
       };
 
       records.set(record.id, record);
@@ -156,6 +163,110 @@ export function createFakeDocumentRepository(
       return true;
     },
 
+    async claimNextAnalysis(now, leaseUntil) {
+      const candidate = [...records.values()]
+        .filter(
+          (record) =>
+            record.status === "PROCESSING" &&
+            record.analysisNextAttemptAt <= now &&
+            (!record.analysisLeaseUntil ||
+              record.analysisLeaseUntil <= now),
+        )
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0];
+
+      if (!candidate) return null;
+
+      const updated: DocumentRecord = {
+        ...candidate,
+        analysisLeaseUntil: leaseUntil,
+        analysisAttempts: candidate.analysisAttempts + 1,
+        analysisError: null,
+        updatedAt: now,
+      };
+
+      records.set(candidate.id, updated);
+
+      return {
+        id: updated.id,
+        userId: updated.userId,
+        s3Key: updated.s3Key,
+        instruction: updated.instruction,
+        mimeType: updated.mimeType,
+        attempts: updated.analysisAttempts,
+        leaseUntil,
+      } satisfies DocumentAnalysisTask;
+    },
+
+    async completeAnalysis(task, result) {
+      const record = records.get(task.id);
+      if (
+        !record ||
+        record.userId !== task.userId ||
+        record.status !== "PROCESSING" ||
+        record.analysisLeaseUntil?.getTime() !== task.leaseUntil.getTime()
+      ) {
+        return false;
+      }
+
+      records.set(task.id, {
+        ...record,
+        status: "COMPLETED",
+        analysis: result.analysis,
+        truncated: result.truncated,
+        errorCode: null,
+        errorMessage: null,
+        analysisLeaseUntil: null,
+        analysisError: null,
+        updatedAt: new Date(),
+      });
+      return true;
+    },
+
+    async failAnalysis(task, failure) {
+      const record = records.get(task.id);
+      if (
+        !record ||
+        record.userId !== task.userId ||
+        record.status !== "PROCESSING" ||
+        record.analysisLeaseUntil?.getTime() !== task.leaseUntil.getTime()
+      ) {
+        return false;
+      }
+
+      records.set(task.id, {
+        ...record,
+        status: "FAILED",
+        errorCode: failure.errorCode,
+        errorMessage: failure.errorMessage,
+        truncated: failure.truncated,
+        analysisLeaseUntil: null,
+        analysisError: failure.errorMessage,
+        updatedAt: new Date(),
+      });
+      return true;
+    },
+
+    async rescheduleAnalysis(task, nextAttemptAt, errorMessage) {
+      const record = records.get(task.id);
+      if (
+        !record ||
+        record.userId !== task.userId ||
+        record.status !== "PROCESSING" ||
+        record.analysisLeaseUntil?.getTime() !== task.leaseUntil.getTime()
+      ) {
+        return false;
+      }
+
+      records.set(task.id, {
+        ...record,
+        analysisLeaseUntil: null,
+        analysisNextAttemptAt: nextAttemptAt,
+        analysisError: errorMessage,
+        updatedAt: new Date(),
+      });
+      return true;
+    },
+
     async markProcessing(id, userId) {
       const record = records.get(id);
       if (!record || record.userId !== userId || record.status !== "FAILED") {
@@ -169,6 +280,10 @@ export function createFakeDocumentRepository(
         errorCode: null,
         errorMessage: null,
         truncated: false,
+        analysisNextAttemptAt: new Date(),
+        analysisLeaseUntil: null,
+        analysisAttempts: 0,
+        analysisError: null,
         updatedAt: new Date(),
       });
       return true;

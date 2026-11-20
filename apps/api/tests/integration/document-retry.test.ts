@@ -9,6 +9,7 @@ import { createFakeStorage } from "../helpers/fake-storage";
 import { makePdf } from "../helpers/document-fixtures";
 import { useIntegrationDatabase } from "../helpers/integration-hooks";
 import { loginAndGetCookie } from "../helpers/login";
+import { runAnalysisWorker } from "../helpers/run-analysis-worker";
 
 const storageFake = createFakeStorage();
 const analyzerFake = createFakeDocumentAnalyzer();
@@ -23,6 +24,13 @@ describe("POST /documents/:id/retry", () => {
     storageFake.reset();
     analyzerFake.reset();
   });
+
+  async function runWorker(): Promise<void> {
+    await runAnalysisWorker(getApp(), {
+      storage: storageFake.storage,
+      analyzer: analyzerFake.analyzer,
+    });
+  }
 
   async function createUser() {
     return getApp().prisma.user.create({
@@ -62,7 +70,7 @@ describe("POST /documents/:id/retry", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("reprocesses a failed document without uploading it again", async () => {
+  it("queues a failed document for reprocessing without uploading it again", async () => {
     const cookie = await loginAndGetCookie(getApp());
     const user = await getApp().prisma.user.findFirstOrThrow();
     const document = await createFailedDocument(user.id);
@@ -79,10 +87,15 @@ describe("POST /documents/:id/retry", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().id).toBe(document.id);
-    expect(response.json().status).toBe("COMPLETED");
-    expect(response.json().analysis).toBe(analyzerFake.defaultResponse);
-    expect(response.json().errorCode).toBeNull();
+    expect(response.json()).toMatchObject({
+      id: document.id,
+      status: "PROCESSING",
+      analysis: null,
+      errorCode: null,
+    });
+    expect(analyzerFake.calls).toHaveLength(0);
+
+    await runWorker();
 
     expect(analyzerFake.calls).toHaveLength(1);
     expect(analyzerFake.calls[0]).toMatchObject({
@@ -90,12 +103,15 @@ describe("POST /documents/:id/retry", () => {
       text: "Conteúdo do contrato para análise.",
     });
 
-    const updatedDocument = await getApp().prisma.document.findUnique({
+    const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
       where: { id: document.id },
     });
 
-    expect(updatedDocument?.status).toBe("COMPLETED");
-    expect(updatedDocument?.analysis).toBe(analyzerFake.defaultResponse);
+    expect(updatedDocument).toMatchObject({
+      status: "COMPLETED",
+      analysis: analyzerFake.defaultResponse,
+      errorCode: null,
+    });
     expect(storageFake.objects.has(document.s3Key)).toBe(true);
   });
 
@@ -207,7 +223,7 @@ describe("POST /documents/:id/retry", () => {
     expect(response.json().error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("keeps the document FAILED when storage retrieval fails", async () => {
+  it("keeps the document PROCESSING and reschedules it when storage retrieval fails", async () => {
     const cookie = await loginAndGetCookie(getApp());
     const user = await getApp().prisma.user.findFirstOrThrow();
     const document = await createFailedDocument(user.id);
@@ -221,16 +237,23 @@ describe("POST /documents/:id/retry", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().status).toBe("FAILED");
-    expect(response.json().errorCode).toBe("STORAGE_ERROR");
+    expect(response.json().status).toBe("PROCESSING");
+
+    await runWorker();
+
     expect(analyzerFake.calls).toHaveLength(0);
 
-    const updatedDocument = await getApp().prisma.document.findUnique({
+    const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
       where: { id: document.id },
     });
 
-    expect(updatedDocument?.status).toBe("FAILED");
-    expect(updatedDocument?.errorCode).toBe("STORAGE_ERROR");
+    expect(updatedDocument.status).toBe("PROCESSING");
+    expect(updatedDocument.errorCode).toBeNull();
+    expect(updatedDocument.analysisLeaseUntil).toBeNull();
+    expect(updatedDocument.analysisError).toEqual(expect.any(String));
+    expect(updatedDocument.analysisNextAttemptAt.getTime()).toBeGreaterThan(
+      Date.now(),
+    );
   });
 
   it("keeps the document FAILED when the analysis fails again", async () => {
@@ -254,17 +277,22 @@ describe("POST /documents/:id/retry", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       id: document.id,
-      status: "FAILED",
-      errorCode: "AI_TIMEOUT",
+      status: "PROCESSING",
+      errorCode: null,
       analysis: null,
     });
+
+    await runWorker();
 
     const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
       where: { id: document.id },
     });
 
-    expect(updatedDocument.status).toBe("FAILED");
-    expect(updatedDocument.errorCode).toBe("AI_TIMEOUT");
+    expect(updatedDocument).toMatchObject({
+      status: "FAILED",
+      errorCode: "AI_TIMEOUT",
+      analysis: null,
+    });
     expect(analyzerFake.calls).toHaveLength(1);
   });
 
@@ -303,14 +331,24 @@ describe("POST /documents/:id/retry", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       id: document.id,
+      status: "PROCESSING",
+      errorCode: null,
+    });
+
+    await runWorker();
+
+    const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: document.id },
+    });
+
+    expect(updatedDocument).toMatchObject({
       status: "FAILED",
       errorCode: "UNREADABLE_FILE",
     });
-
     expect(analyzerFake.calls).toHaveLength(0);
   });
 
-  it("allows only one concurrent retry to process the document", async () => {
+  it("allows only one concurrent retry to queue the document", async () => {
     const cookie = await loginAndGetCookie(getApp());
     const user = await getApp().prisma.user.findFirstOrThrow();
     const document = await createFailedDocument(user.id);
@@ -320,35 +358,34 @@ describe("POST /documents/:id/retry", () => {
       contentType: document.mimeType,
     });
 
-    const gate = analyzerFake.pause();
-
-    try {
-      const firstRequest = getApp().inject({
+    const [first, second] = await Promise.all([
+      getApp().inject({
         method: "POST",
         url: `/documents/${document.id}/retry`,
         headers: { cookie },
-      });
-
-      await gate.started;
-
-      const secondResponse = await getApp().inject({
+      }),
+      getApp().inject({
         method: "POST",
         url: `/documents/${document.id}/retry`,
         headers: { cookie },
-      });
+      }),
+    ]);
 
-      expect(secondResponse.statusCode).toBe(409);
-      expect(secondResponse.json().error.code).toBe("CONFLICT");
+    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 409]);
 
-      gate.release();
+    const rejected = first.statusCode === 409 ? first : second;
 
-      const firstResponse = await firstRequest;
+    expect(rejected.json().error.code).toBe("CONFLICT");
+    expect(analyzerFake.calls).toHaveLength(0);
 
-      expect(firstResponse.statusCode).toBe(200);
-      expect(firstResponse.json().status).toBe("COMPLETED");
-      expect(analyzerFake.calls).toHaveLength(1);
-    } finally {
-      gate.release();
-    }
+    await runWorker();
+
+    expect(analyzerFake.calls).toHaveLength(1);
+
+    const updatedDocument = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: document.id },
+    });
+
+    expect(updatedDocument.status).toBe("COMPLETED");
   });
 });

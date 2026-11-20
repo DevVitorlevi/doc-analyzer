@@ -8,6 +8,7 @@ import { makeDocx, makePdf } from "../helpers/document-fixtures";
 import { useIntegrationDatabase } from "../helpers/integration-hooks";
 import { loginAndGetCookie } from "../helpers/login";
 import { buildMultipartBody, type MultipartPart } from "../helpers/multipart";
+import { runAnalysisWorker } from "../helpers/run-analysis-worker";
 
 const storageFake = createFakeStorage();
 const analyzerFake = createFakeDocumentAnalyzer();
@@ -53,6 +54,13 @@ describe("POST /documents", () => {
     return { name, filename, contentType, content };
   }
 
+  async function runWorker(): Promise<void> {
+    await runAnalysisWorker(getApp(), {
+      storage: storageFake.storage,
+      analyzer: analyzerFake.analyzer,
+    });
+  }
+
   async function expectNothingPersisted(): Promise<void> {
     expect(await getApp().prisma.document.count()).toBe(0);
     expect(storageFake.objects.size).toBe(0);
@@ -84,8 +92,8 @@ describe("POST /documents", () => {
     expect(body).toMatchObject({
       title: "Contrato",
       instruction: "Resuma o documento",
-      status: "COMPLETED",
-      analysis: analyzerFake.defaultResponse,
+      status: "PROCESSING",
+      analysis: null,
       truncated: false,
       errorCode: null,
       originalName: "contrato.txt",
@@ -107,8 +115,21 @@ describe("POST /documents", () => {
     });
 
     expect(record.userId).toBe(user.id);
-    expect(record.status).toBe("COMPLETED");
+    expect(record.status).toBe("PROCESSING");
     expect(record.s3Key).toBe(`${user.id}/${body.id}.txt`);
+
+    await runWorker();
+
+    const completed = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: body.id },
+    });
+
+    expect(completed).toMatchObject({
+      status: "COMPLETED",
+      analysis: analyzerFake.defaultResponse,
+      truncated: false,
+      errorCode: null,
+    });
   });
 
   it.each([
@@ -137,10 +158,18 @@ describe("POST /documents", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
-      status: "COMPLETED",
+      status: "PROCESSING",
       mimeType: testCase.mimeType,
     });
+    expect(analyzerFake.calls).toHaveLength(0);
 
+    await runWorker();
+
+    const saved = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: response.json().id },
+    });
+
+    expect(saved.status).toBe("COMPLETED");
     expect(analyzerFake.calls).toHaveLength(1);
     expect(analyzerFake.calls[0]?.text).toContain("Texto do relatório");
 
@@ -160,9 +189,17 @@ describe("POST /documents", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
-      status: "COMPLETED",
-      truncated: true,
+      status: "PROCESSING",
+      truncated: false,
     });
+
+    await runWorker();
+
+    const saved = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: response.json().id },
+    });
+
+    expect(saved).toMatchObject({ status: "COMPLETED", truncated: true });
     expect(analyzerFake.calls[0]?.truncated).toBe(true);
     expect(analyzerFake.calls[0]?.text).toHaveLength(60000);
   });
@@ -181,17 +218,23 @@ describe("POST /documents", () => {
     const body = response.json();
 
     expect(body).toMatchObject({
-      status: "FAILED",
-      errorCode: "AI_TIMEOUT",
+      status: "PROCESSING",
+      errorCode: null,
       analysis: null,
     });
-    expect(body.errorMessage).toEqual(expect.any(String));
+
+    await runWorker();
 
     const record = await getApp().prisma.document.findUniqueOrThrow({
       where: { id: body.id },
     });
 
-    expect(record.status).toBe("FAILED");
+    expect(record).toMatchObject({
+      status: "FAILED",
+      errorCode: "AI_TIMEOUT",
+      analysis: null,
+    });
+    expect(record.errorMessage).toEqual(expect.any(String));
     expect(storageFake.objects.has(record.s3Key)).toBe(true);
   });
 
@@ -205,6 +248,17 @@ describe("POST /documents", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
+      status: "PROCESSING",
+      errorCode: null,
+    });
+
+    await runWorker();
+
+    const saved = await getApp().prisma.document.findUniqueOrThrow({
+      where: { id: response.json().id },
+    });
+
+    expect(saved).toMatchObject({
       status: "FAILED",
       errorCode: "UNREADABLE_FILE",
     });

@@ -15,6 +15,7 @@ import { useDocuments } from "./queries";
 import { useDeleteDocuments } from "./hooks/use-delete-documents";
 import { useFileDrop } from "./hooks/use-file-drop";
 import { useFilePicker } from "./hooks/use-file-picker";
+import { useProcessingNotifications } from "./hooks/use-processing-notifications";
 
 const LOADING_SKELETON_COUNT = 4;
 const LOADING_LABEL = "Carregando documentos...";
@@ -35,6 +36,8 @@ function formatDocumentCount(count: number): string {
 
 export default function DocumentsPage() {
   const documents = useDocuments();
+
+  useProcessingNotifications(documents.data);
   const { deleteDocuments, isDeleting } = useDeleteDocuments();
   const documentItems = documents.data;
   const {

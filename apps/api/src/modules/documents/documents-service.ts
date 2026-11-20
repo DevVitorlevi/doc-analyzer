@@ -8,10 +8,7 @@ import type { DocumentAnalyzer } from "@/integrations/openai/openai-analyzer";
 
 import type { StorageProvider } from "@/integrations/storage/s3-storage";
 
-import {
-  extractText,
-  type DocumentFormat,
-} from "@/integrations/text-extraction/text-extractor";
+import type { DocumentFormat } from "@/integrations/text-extraction/text-extractor";
 
 import type { DocumentRepository } from "@/repositories/document-repository";
 
@@ -19,11 +16,6 @@ import { AppError } from "@/shared/errors/app-error";
 
 import { detectFileType, sanitizeFileName } from "./file-validation";
 
-import {
-  isExpectedProcessingError,
-  toProcessingFailure,
-  type ProcessingFailure,
-} from "./processing-failure";
 
 export interface DocumentServiceDeps {
   documents: DocumentRepository;
@@ -49,10 +41,6 @@ export interface DocumentDetail {
   fileUrl: string;
 }
 
-type AnalysisOutcome =
-  | { ok: true; analysis: string; truncated: boolean }
-  | { ok: false; failure: ProcessingFailure; truncated: boolean };
-
 const DOCUMENT_FORMATS: Record<string, DocumentFormat> = {
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -69,36 +57,6 @@ export function createDocumentService(deps: DocumentServiceDeps) {
         { s3Key: key },
         "Failed to remove orphan storage object",
       );
-    }
-  }
-
-  async function runAnalysis(
-    instruction: string,
-    buffer: Buffer,
-    format: DocumentFormat,
-  ): Promise<AnalysisOutcome> {
-    let truncated = false;
-
-    try {
-      const extracted = await extractText(buffer, format, deps.maxTextChars);
-      truncated = extracted.truncated;
-
-      const analysis = await deps.analyzer.analyze({
-        instruction,
-        text: extracted.text,
-        truncated,
-      });
-
-      return { ok: true, analysis, truncated };
-    } catch (error) {
-      if (!isExpectedProcessingError(error)) {
-        deps.logger.error(
-          { err: error },
-          "Unexpected error while processing document",
-        );
-      }
-
-      return { ok: false, failure: toProcessingFailure(error), truncated };
     }
   }
 
@@ -156,29 +114,7 @@ export function createDocumentService(deps: DocumentServiceDeps) {
       throw error;
     }
 
-    const outcome = await runAnalysis(
-      document.instruction,
-      buffer,
-      detected.format,
-    );
-
-    if (outcome.ok) {
-      return deps.documents.markCompleted(document.id, document.userId, {
-        analysis: outcome.analysis,
-        truncated: outcome.truncated,
-      });
-    }
-
-    deps.logger.warn(
-      { documentId: document.id, errorCode: outcome.failure.errorCode },
-      "Document analysis failed",
-    );
-
-    return deps.documents.markFailed(document.id, document.userId, {
-      errorCode: outcome.failure.errorCode,
-      errorMessage: outcome.failure.errorMessage,
-      truncated: outcome.truncated,
-    });
+    return document;
   }
 
   async function retryDocument(
@@ -220,43 +156,17 @@ export function createDocumentService(deps: DocumentServiceDeps) {
       );
     }
 
-    let buffer: Buffer;
+    const updated = await deps.documents.findByIdForUser(id, userId);
 
-    try {
-      buffer = await deps.storage.getObject(document.s3Key);
-    } catch (error) {
-      deps.logger.error(
-        { err: error, documentId: id },
-        "Failed to retrieve document for retry",
+    if (!updated) {
+      throw new AppError(
+        "NOT_FOUND",
+        "Documento não encontrado.",
+        404,
       );
-
-      return deps.documents.markFailed(id, userId, {
-        errorCode: "STORAGE_ERROR",
-        errorMessage:
-          "Não foi possível recuperar o arquivo para reprocessamento. Tente novamente.",
-        truncated: false,
-      });
     }
 
-    const outcome = await runAnalysis(document.instruction, buffer, format);
-
-    if (outcome.ok) {
-      return deps.documents.markCompleted(id, userId, {
-        analysis: outcome.analysis,
-        truncated: outcome.truncated,
-      });
-    }
-
-    deps.logger.warn(
-      { documentId: id, errorCode: outcome.failure.errorCode },
-      "Document retry failed",
-    );
-
-    return deps.documents.markFailed(id, userId, {
-      errorCode: outcome.failure.errorCode,
-      errorMessage: outcome.failure.errorMessage,
-      truncated: outcome.truncated,
-    });
+    return updated;
   }
 
   async function listDocuments(userId: string): Promise<DocumentRecord[]> {

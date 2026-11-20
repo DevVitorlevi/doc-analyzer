@@ -10,6 +10,8 @@ import {
 
 export const DOCUMENTS_QUERY_KEY = ["documents"] as const;
 
+const PROCESSING_POLL_INTERVAL_MS = 2_000;
+
 export function documentQueryKey(id: string) {
   return ["documents", id] as const;
 }
@@ -18,6 +20,10 @@ export function useDocuments() {
   return useQuery({
     queryKey: DOCUMENTS_QUERY_KEY,
     queryFn: listDocuments,
+    refetchInterval: (query) =>
+      query.state.data?.some((item) => item.status === "PROCESSING")
+        ? PROCESSING_POLL_INTERVAL_MS
+        : false,
   });
 }
 
@@ -32,6 +38,10 @@ export function useDocument(id: string | null) {
       return getDocument(id);
     },
     enabled: id !== null,
+    refetchInterval: (query) =>
+      query.state.data?.status === "PROCESSING"
+        ? PROCESSING_POLL_INTERVAL_MS
+        : false,
   });
 }
 

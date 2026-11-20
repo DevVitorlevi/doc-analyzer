@@ -26,6 +26,26 @@ export interface DocumentFailure {
   truncated: boolean;
 }
 
+export interface DocumentAnalysisTask {
+  id: string;
+  userId: string;
+  s3Key: string;
+  instruction: string;
+  mimeType: string;
+  attempts: number;
+  leaseUntil: Date;
+}
+
+interface ClaimedAnalysisRow {
+  id: string;
+  userId: string;
+  s3Key: string;
+  instruction: string;
+  mimeType: string;
+  analysisAttempts: number;
+  analysisLeaseUntil: Date;
+}
+
 export interface DeletionTask {
   id: string;
   userId: string;
@@ -200,6 +220,125 @@ export function createDocumentRepository(prisma: PrismaClient) {
       return result.count === 1;
     },
 
+    async claimNextAnalysis(
+      now: Date,
+      leaseUntil: Date,
+    ): Promise<DocumentAnalysisTask | null> {
+      const rows = await prisma.$queryRaw<ClaimedAnalysisRow[]>`
+        WITH candidate AS (
+          SELECT "id"
+          FROM "documents"
+          WHERE
+            "status" = 'PROCESSING'::"DocumentStatus"
+            AND "analysisNextAttemptAt" <= ${now}
+            AND (
+              "analysisLeaseUntil" IS NULL
+              OR "analysisLeaseUntil" <= ${now}
+            )
+          ORDER BY "createdAt" ASC
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+        )
+        UPDATE "documents" AS document
+        SET
+          "analysisLeaseUntil" = ${leaseUntil},
+          "analysisAttempts" = document."analysisAttempts" + 1,
+          "analysisError" = NULL,
+          "updatedAt" = ${now}
+        FROM candidate
+        WHERE document."id" = candidate."id"
+        RETURNING
+          document."id" AS "id",
+          document."userId" AS "userId",
+          document."s3Key" AS "s3Key",
+          document."instruction" AS "instruction",
+          document."mimeType" AS "mimeType",
+          document."analysisAttempts" AS "analysisAttempts",
+          document."analysisLeaseUntil" AS "analysisLeaseUntil"
+      `;
+
+      const row = rows[0];
+      if (!row) return null;
+
+      return {
+        id: row.id,
+        userId: row.userId,
+        s3Key: row.s3Key,
+        instruction: row.instruction,
+        mimeType: row.mimeType,
+        attempts: row.analysisAttempts,
+        leaseUntil: row.analysisLeaseUntil,
+      };
+    },
+
+    async completeAnalysis(
+      task: DocumentAnalysisTask,
+      result: DocumentCompletion,
+    ): Promise<boolean> {
+      const updated = await prisma.document.updateMany({
+        where: {
+          id: task.id,
+          userId: task.userId,
+          status: DocumentStatus.PROCESSING,
+          analysisLeaseUntil: task.leaseUntil,
+        },
+        data: {
+          status: DocumentStatus.COMPLETED,
+          analysis: result.analysis,
+          truncated: result.truncated,
+          errorCode: null,
+          errorMessage: null,
+          analysisLeaseUntil: null,
+          analysisError: null,
+        },
+      });
+      return updated.count === 1;
+    },
+
+    async failAnalysis(
+      task: DocumentAnalysisTask,
+      failure: DocumentFailure,
+    ): Promise<boolean> {
+      const updated = await prisma.document.updateMany({
+        where: {
+          id: task.id,
+          userId: task.userId,
+          status: DocumentStatus.PROCESSING,
+          analysisLeaseUntil: task.leaseUntil,
+        },
+        data: {
+          status: DocumentStatus.FAILED,
+          errorCode: failure.errorCode,
+          errorMessage: failure.errorMessage,
+          truncated: failure.truncated,
+          analysisLeaseUntil: null,
+          analysisError: failure.errorMessage,
+        },
+      });
+      return updated.count === 1;
+    },
+
+    async rescheduleAnalysis(
+      task: DocumentAnalysisTask,
+      nextAttemptAt: Date,
+      errorMessage: string,
+    ): Promise<boolean> {
+      const updated = await prisma.document.updateMany({
+        where: {
+          id: task.id,
+          userId: task.userId,
+          status: DocumentStatus.PROCESSING,
+          analysisLeaseUntil: task.leaseUntil,
+        },
+        data: {
+          analysisLeaseUntil: null,
+          analysisNextAttemptAt: nextAttemptAt,
+          analysisError: errorMessage,
+        },
+      });
+      return updated.count === 1;
+    },
+
     async markProcessing(id: string, userId: string): Promise<boolean> {
       const result = await prisma.document.updateMany({
         where: {
@@ -213,6 +352,10 @@ export function createDocumentRepository(prisma: PrismaClient) {
           errorCode: null,
           errorMessage: null,
           truncated: false,
+          analysisNextAttemptAt: new Date(),
+          analysisLeaseUntil: null,
+          analysisAttempts: 0,
+          analysisError: null,
         },
       });
 

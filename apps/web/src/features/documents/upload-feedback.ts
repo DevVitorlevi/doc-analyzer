@@ -3,9 +3,11 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import { ApiError } from "@/lib/http";
 
-import type { DocumentResponse } from "./types";
+import type { DocumentResponse, DocumentStatus } from "./types";
 
 const SUCCESS_MESSAGE = "Documento analisado com sucesso.";
+const BACKGROUND_FAILURE_MESSAGE =
+  "A análise não pôde ser concluída. Abra o documento para ver o motivo.";
 const UNAUTHORIZED_STATUS = 401;
 
 export function notifyUploadResult(document: DocumentResponse): void {
@@ -23,6 +25,17 @@ export function notifyUploadResult(document: DocumentResponse): void {
       return unreachable;
     }
   }
+}
+
+export function notifyProcessingFinished(
+  status: Exclude<DocumentStatus, "PROCESSING">,
+): void {
+  if (status === "COMPLETED") {
+    toast.success(SUCCESS_MESSAGE);
+    return;
+  }
+
+  toast.error(BACKGROUND_FAILURE_MESSAGE);
 }
 
 export function notifyUploadError(error: unknown): void {
