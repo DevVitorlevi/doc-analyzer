@@ -10,7 +10,8 @@ export default function DocumentsEmptyState({
   return (
     <div
       className={[
-        "h-[75vh] flex flex-col items-center justify-center gap-(--space-10)",
+        "min-h-[50vh] flex flex-col items-center justify-center gap-(--space-10)",
+        "md:h-[75vh]",
         "rounded-(--radius-container) border border-dashed",
         "px-6 py-16 text-center",
         isDragActive ? "border-primary" : "border-border",

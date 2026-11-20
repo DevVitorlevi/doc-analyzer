@@ -29,7 +29,7 @@ export default function AppShell() {
         isLoggingOut={logout.isPending}
       />
 
-      <main className="min-w-0 flex-1 bg-surface px-6 py-8 md:px-8">
+      <main className="min-w-0 flex-1 bg-surface px-4 py-6 md:px-6 md:py-8 lg:px-8">
         <Outlet />
       </main>
     </div>

@@ -136,7 +136,8 @@ export default function DocumentsPage() {
         data-drag-active={isDragOver}
         {...dropZoneProps}
         className={[
-          "flex flex-col h-[85vh] gap-[var(--space-12)] p-[var(--space-24)]",
+          "flex min-h-[60vh] flex-col gap-[var(--space-12)] p-[var(--space-16)]",
+          "md:h-[85vh] lg:p-[var(--space-24)]",
           "rounded-[var(--radius-container)] border",
           "motion-safe:transition-colors",
           isDragOver
