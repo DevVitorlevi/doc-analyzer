@@ -33,6 +33,9 @@ export function DropdownMenuContent({
             "text-[var(--color-text-primary)]",
             "shadow-[var(--shadow-overlay-panel)]",
             "outline-none",
+            "origin-(--radix-dropdown-menu-content-transform-origin)",
+            "motion-safe:data-[state=open]:animate-menu-in",
+            "motion-safe:data-[state=closed]:animate-menu-out",
           ],
           className,
         )}

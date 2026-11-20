@@ -15,8 +15,12 @@ export function DialogOverlay({ className, ...props }: DialogOverlayProps) {
   return (
     <DialogPrimitive.Overlay
       className={cn(
-        "fixed inset-0 z-(--z-index-modal-scrim)",
-        "bg-(--color-modal-scrim)",
+        [
+          "fixed inset-0 z-(--z-index-modal-scrim)",
+          "bg-(--color-modal-scrim)",
+          "motion-safe:data-[state=open]:animate-overlay-in",
+          "motion-safe:data-[state=closed]:animate-overlay-out",
+        ],
         className,
       )}
       {...props}
@@ -49,6 +53,8 @@ export function DialogContent({
             "p-4 text-text-primary",
             "shadow-(--shadow-overlay-panel)",
             "outline-none",
+            "motion-safe:data-[state=open]:animate-dialog-in",
+            "motion-safe:data-[state=closed]:animate-dialog-out",
           ],
           className,
         )}
