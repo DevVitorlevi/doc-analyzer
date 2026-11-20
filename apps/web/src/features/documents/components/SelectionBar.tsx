@@ -19,11 +19,13 @@ function formatSelectionLabel(count: number): string {
 interface SelectionBarProps {
   selectedCount: number;
   onViewAnalysis: () => void;
+  onDelete: () => void;
 }
 
 export default function SelectionBar({
   selectedCount,
   onViewAnalysis,
+  onDelete,
 }: SelectionBarProps) {
   if (selectedCount < 1) {
     return null;
@@ -40,7 +42,11 @@ export default function SelectionBar({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="border border-[#D9D9E0]">
-        <DropdownMenuItem variant="default" className="text-md">
+        <DropdownMenuItem
+          variant="default"
+          className="text-md"
+          onSelect={onDelete}
+        >
           <Trash2
             aria-hidden="true"
             className="size-6 shrink-0 text-error"
