@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
@@ -7,6 +7,7 @@ import { FILE_INPUT_ACCEPT } from "@/lib/file-validation";
 import DocumentGrid from "./components/DocumentGrid";
 import DocumentsEmptyState from "./components/DocumentsEmptyState";
 import SelectionBar from "./components/SelectionBar";
+import UploadModal from "./components/UploadModal";
 import { useDocuments } from "./queries";
 import { useFilePicker } from "./use-file-picker";
 
@@ -28,7 +29,14 @@ function formatDocumentCount(count: number): string {
 export default function DocumentsPage() {
   const documents = useDocuments();
   const documentItems = documents.data;
-  const { inputRef, openPicker, handleInputChange } = useFilePicker();
+  const {
+    inputRef,
+    openPicker,
+    handleInputChange,
+    chosenFile,
+    clearChosenFile,
+  } = useFilePicker();
+  const addButtonRef = useRef<HTMLButtonElement>(null);
 
   const [selectedIds, setSelectedIds] =
     useState<ReadonlySet<string>>(EMPTY_SELECTION);
@@ -82,7 +90,11 @@ export default function DocumentsPage() {
             <div className="ml-auto flex flex-wrap items-center gap-(--space-8)">
               <SelectionBar selectedCount={selectedDocumentIds.size} />
 
-              <Button className="pl-5 pr-6" onClick={openPicker}>
+              <Button
+                ref={addButtonRef}
+                className="pl-5 pr-6"
+                onClick={openPicker}
+              >
                 <Plus aria-hidden="true" className="size-5 shrink-0" />
                 Adicionar documento
               </Button>
@@ -148,6 +160,12 @@ export default function DocumentsPage() {
           />
         )}
       </div>
+
+      <UploadModal
+        file={chosenFile}
+        onClose={clearChosenFile}
+        returnFocusRef={addButtonRef}
+      />
     </div>
   );
 }

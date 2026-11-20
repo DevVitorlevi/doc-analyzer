@@ -1,14 +1,3 @@
-/*
- * Tokens visuais do Jus Digital.
- *
- * Origem: TOKENS_FIGMA.md — extração manual dos frames F1–F6.
- * Não representa uma exportação oficial de Figma Variables.
- *
- * Valores extraídos e decisões técnicas estão identificados
- * separadamente. Decisões técnicas podem ser ajustadas após
- * comparação visual com o protótipo.
- */
-
 @theme {
   /* Paleta obrigatória [U] */
   --color-primary: #30a46c;
@@ -48,7 +37,7 @@
   --line-height-selection-counter: 24px;
   --letter-spacing-selection-counter: 0.15px;
 
-  --font-size-dialog-title: 20px;
+  --font-size-dialog-title: 24px;
   --font-weight-dialog-title: 500;
   --line-height-dialog-title: 20px;
 
@@ -121,11 +110,6 @@
   --document-menu-width: 280px;
   --document-menu-height: 84px;
 
-  /*
-   * Decisões técnicas de interação.
-   * Não são valores extraídos do Figma.
-   */
-
   /* Cores semânticas das ações */
   --color-view-action: var(--color-primary);
   --color-delete-action: var(--color-error);
@@ -136,9 +120,17 @@
   --color-danger-action: var(--color-error);
 
   /* Hover */
-  --color-primary-hover: color-mix(in srgb, var(--color-primary-action) 88%, black);
+  --color-primary-hover: color-mix(
+    in srgb,
+    var(--color-primary-action) 88%,
+    black
+  );
 
-  --color-danger-hover: color-mix(in srgb, var(--color-danger-action) 88%, black);
+  --color-danger-hover: color-mix(
+    in srgb,
+    var(--color-danger-action) 88%,
+    black
+  );
 
   --color-control-hover: color-mix(
     in srgb,
@@ -146,11 +138,7 @@
     black
   );
 
-  --color-card-hover: color-mix(
-    in srgb,
-    var(--color-document-card) 92%,
-    black
-  );
+  --color-card-hover: color-mix(in srgb, var(--color-document-card) 92%, black);
 
   /* Active */
   --color-primary-active: color-mix(
@@ -201,12 +189,104 @@
   --icon-size-lg: 24px;
   --icon-stroke-width: 2px;
 
-  /*
-   * Card de documento — decisão técnica (FE-12).
-   * Nome, data e metadados não foram extraídos do Figma.
-   */
   --font-size-document-name: 14px;
   --line-height-document-name: 20px;
   --document-icon-width: 40px;
   --document-icon-height: 52px;
+}
+
+/* Movimento — decisão técnica (Vitor, 20/11/2026). Máx. 200 ms (R-06.5). */
+:root {
+  --motion-duration-enter: 200ms;
+  --motion-duration-exit: 150ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+@theme {
+  --animate-overlay-in: overlay-in var(--motion-duration-enter)
+    var(--motion-ease-out) both;
+  --animate-overlay-out: overlay-out var(--motion-duration-exit)
+    var(--motion-ease-in) both;
+  --animate-dialog-in: dialog-in var(--motion-duration-enter)
+    var(--motion-ease-out) both;
+  --animate-dialog-out: dialog-out var(--motion-duration-exit)
+    var(--motion-ease-in) both;
+  --animate-menu-in: menu-in var(--motion-duration-enter)
+    var(--motion-ease-out) both;
+  --animate-menu-out: menu-out var(--motion-duration-exit)
+    var(--motion-ease-in) both;
+  --animate-fade-in: fade-in var(--motion-duration-enter)
+    var(--motion-ease-out) both;
+
+  @keyframes overlay-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes overlay-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes dialog-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes menu-out {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }

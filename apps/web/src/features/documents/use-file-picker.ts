@@ -12,6 +12,10 @@ export function useFilePicker() {
     inputRef.current?.click();
   }, []);
 
+  const clearChosenFile = useCallback(() => {
+    setChosenFile(null);
+  }, []);
+
   const handleInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const input = event.currentTarget;
@@ -35,5 +39,11 @@ export function useFilePicker() {
     [],
   );
 
-  return { inputRef, openPicker, handleInputChange, chosenFile };
+  return {
+    inputRef,
+    openPicker,
+    handleInputChange,
+    chosenFile,
+    clearChosenFile,
+  };
 }
