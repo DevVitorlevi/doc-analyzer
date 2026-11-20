@@ -28,11 +28,16 @@ export function DialogOverlay({ className, ...props }: DialogOverlayProps) {
   );
 }
 
-export type DialogContentProps = ComponentProps<typeof DialogPrimitive.Content>;
+export type DialogContentProps = ComponentProps<
+  typeof DialogPrimitive.Content
+> & {
+  closeDisabled?: boolean;
+};
 
 export function DialogContent({
   className,
   children,
+  closeDisabled = false,
   ...props
 }: DialogContentProps) {
   return (
@@ -64,6 +69,7 @@ export function DialogContent({
 
         <DialogPrimitive.Close
           aria-label="Fechar"
+          disabled={closeDisabled}
           className={cn([
             "absolute right-2 top-2",
             "inline-flex size-9 items-center justify-center",
@@ -75,6 +81,8 @@ export function DialogContent({
             "focus-visible:outline-2",
             "focus-visible:outline-offset-2",
             "focus-visible:outline-(--color-primary-action)",
+            "disabled:pointer-events-none",
+            "disabled:opacity-(--disabled-opacity)",
             "motion-reduce:transition-none",
           ])}
         >
